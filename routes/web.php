@@ -5,7 +5,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\TipperController;
 use App\Http\Controllers\DriverController;
-use App\Http\Controllers\Api\PlantController;
+use App\Http\Controllers\PlantController;
 use App\Http\Controllers\Api\TripController;
 use Inertia\Inertia;
 
@@ -53,8 +53,11 @@ Route::middleware('auth')->group(function () {
 
     // Plant CRUD routes
     Route::get('/plants', [PlantController::class, 'index'])->name('plants.index');
+    Route::get('/plants/create', [PlantController::class, 'create'])->name('plants.create');
     Route::post('/plants', [PlantController::class, 'store'])->name('plants.store');
     Route::get('/plants/{id}', [PlantController::class, 'show'])->name('plants.show');
+    // ADDED EDIT ROUTE
+    Route::get('/plants/{id}/edit', [PlantController::class, 'edit'])->name('plants.edit');
     Route::put('/plants/{id}', [PlantController::class, 'update'])->name('plants.update');
     Route::delete('/plants/{id}', [PlantController::class, 'destroy'])->name('plants.destroy');
 
