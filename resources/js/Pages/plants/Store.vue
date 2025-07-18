@@ -9,15 +9,17 @@ const props = defineProps({
 
 const form = ref({
   name: '',
+  address: '',
+  phone_number: '',
 });
 
 const submit = () => {
   router.post(route('plants.store'), form.value, {
     onSuccess: () => {
-      router.get(route('plants.index'), {}, { preserveState: false }); // Redirect to index after success
+      router.get(route('plants.index'), {}, { preserveState: false });
     },
     onError: (errors) => {
-      console.log('Errors:', errors); // Debug errors
+      console.log('Errors:', errors);
     },
   });
 };
@@ -54,13 +56,33 @@ const submit = () => {
 
             <form @submit.prevent="submit" class="space-y-6">
               <div>
-                <label for="name" class="block text-sm font-medium text-gray-700">Plant Name</label>
+                <label for="name" class="block text-sm font-medium text-gray-700">Plant Name *</label>
                 <input
                   id="name"
                   v-model="form.name"
                   type="text"
                   class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                   required
+                />
+              </div>
+
+              <div>
+                <label for="address" class="block text-sm font-medium text-gray-700">Address</label>
+                <input
+                  id="address"
+                  v-model="form.address"
+                  type="text"
+                  class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                />
+              </div>
+
+              <div>
+                <label for="phone_number" class="block text-sm font-medium text-gray-700">Phone Number</label>
+                <input
+                  id="phone_number"
+                  v-model="form.phone_number"
+                  type="text"
+                  class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 />
               </div>
 

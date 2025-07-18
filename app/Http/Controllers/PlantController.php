@@ -22,17 +22,19 @@ class PlantController extends Controller
         return Inertia::render('plants/Store');
     }
 
-    public function store(Request $request)
+     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:plants',
+            'address' => 'nullable|string|max:255',
+            'phone_number' => 'nullable|string|max:20',
         ]);
 
         if ($validator->fails()) {
             return back()->withErrors($validator)->withInput();
         }
 
-        Plant::create($request->only(['name']));
+        Plant::create($request->only(['name', 'address', 'phone_number']));
         return redirect()->route('plants.index')->with('flash', ['success' => 'Plant created successfully']);
     }
 
@@ -58,13 +60,15 @@ class PlantController extends Controller
         $plant = Plant::findOrFail($id);
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:plants,name,' . $id,
+            'address' => 'nullable|string|max:255',
+            'phone_number' => 'nullable|string|max:20',
         ]);
 
         if ($validator->fails()) {
             return back()->withErrors($validator)->withInput();
         }
 
-        $plant->update($request->only(['name']));
+        $plant->update($request->only(['name', 'address', 'phone_number']));
         return redirect()->route('plants.index')->with('flash', ['success' => 'Plant updated successfully']);
     }
 
