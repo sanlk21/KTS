@@ -1,4 +1,5 @@
 <template>
+    <AuthenticatedLayout>
   <div class="container mx-auto px-4 py-8">
     <div class="flex justify-between items-center mb-6">
       <h1 class="text-3xl font-bold text-gray-900">Create New Trip</h1>
@@ -17,14 +18,14 @@
               v-model="form.tipper_number"
               @change="onTipperChange"
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              :class="{ 'border-red-500': errors.tipper_number }"
+              :class="{ 'border-red-500': form.errors.tipper_number }"
             >
               <option value="">Select Tipper</option>
               <option v-for="tipper in tippers" :key="tipper.tipper_number" :value="tipper.tipper_number">
                 {{ tipper.tipper_number }} - {{ tipper.size }} Ton
               </option>
             </select>
-            <p v-if="errors.tipper_number" class="mt-1 text-sm text-red-600">{{ errors.tipper_number }}</p>
+            <p v-if="form.errors.tipper_number" class="mt-1 text-sm text-red-600">{{ form.errors.tipper_number }}</p>
           </div>
 
           <!-- Driver Selection -->
@@ -33,7 +34,7 @@
             <select
               v-model="form.driver_id"
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              :class="{ 'border-red-500': errors.driver_id }"
+              :class="{ 'border-red-500': form.errors.driver_id }"
               :disabled="!availableDrivers.length"
             >
               <option value="">Select Driver</option>
@@ -41,7 +42,7 @@
                 {{ driver.name }} - {{ driver.phone }}
               </option>
             </select>
-            <p v-if="errors.driver_id" class="mt-1 text-sm text-red-600">{{ errors.driver_id }}</p>
+            <p v-if="form.errors.driver_id" class="mt-1 text-sm text-red-600">{{ form.errors.driver_id }}</p>
             <p v-if="form.tipper_number && !availableDrivers.length" class="mt-1 text-sm text-yellow-600">
               No drivers available for this tipper
             </p>
@@ -53,14 +54,14 @@
             <select
               v-model="form.plant_id"
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              :class="{ 'border-red-500': errors.plant_id }"
+              :class="{ 'border-red-500': form.errors.plant_id }"
             >
               <option value="">Select Plant</option>
               <option v-for="plant in plants" :key="plant.id" :value="plant.id">
                 {{ plant.name }} - {{ plant.location }}
               </option>
             </select>
-            <p v-if="errors.plant_id" class="mt-1 text-sm text-red-600">{{ errors.plant_id }}</p>
+            <p v-if="form.errors.plant_id" class="mt-1 text-sm text-red-600">{{ form.errors.plant_id }}</p>
           </div>
 
           <!-- Delivery Date -->
@@ -70,9 +71,9 @@
               v-model="form.delivery_date"
               type="date"
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              :class="{ 'border-red-500': errors.delivery_date }"
+              :class="{ 'border-red-500': form.errors.delivery_date }"
             />
-            <p v-if="errors.delivery_date" class="mt-1 text-sm text-red-600">{{ errors.delivery_date }}</p>
+            <p v-if="form.errors.delivery_date" class="mt-1 text-sm text-red-600">{{ form.errors.delivery_date }}</p>
           </div>
 
           <!-- Delivery Time -->
@@ -82,9 +83,9 @@
               v-model="form.delivery_time"
               type="time"
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              :class="{ 'border-red-500': errors.delivery_time }"
+              :class="{ 'border-red-500': form.errors.delivery_time }"
             />
-            <p v-if="errors.delivery_time" class="mt-1 text-sm text-red-600">{{ errors.delivery_time }}</p>
+            <p v-if="form.errors.delivery_time" class="mt-1 text-sm text-red-600">{{ form.errors.delivery_time }}</p>
           </div>
 
           <!-- Trip Amount -->
@@ -96,9 +97,9 @@
               step="0.01"
               min="0"
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              :class="{ 'border-red-500': errors.trip_amount }"
+              :class="{ 'border-red-500': form.errors.trip_amount }"
             />
-            <p v-if="errors.trip_amount" class="mt-1 text-sm text-red-600">{{ errors.trip_amount }}</p>
+            <p v-if="form.errors.trip_amount" class="mt-1 text-sm text-red-600">{{ form.errors.trip_amount }}</p>
           </div>
 
           <!-- Paid Amount -->
@@ -110,9 +111,9 @@
               step="0.01"
               min="0"
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              :class="{ 'border-red-500': errors.paid_amount }"
+              :class="{ 'border-red-500': form.errors.paid_amount }"
             />
-            <p v-if="errors.paid_amount" class="mt-1 text-sm text-red-600">{{ errors.paid_amount }}</p>
+            <p v-if="form.errors.paid_amount" class="mt-1 text-sm text-red-600">{{ form.errors.paid_amount }}</p>
           </div>
         </div>
 
@@ -138,100 +139,75 @@
           </Link>
           <button
             type="submit"
-            :disabled="processing"
+            :disabled="form.processing"
             class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50"
           >
-            {{ processing ? 'Creating...' : 'Create Trip' }}
+            {{ form.processing ? 'Creating...' : 'Create Trip' }}
           </button>
         </div>
       </form>
     </div>
   </div>
+  </AuthenticatedLayout>
 </template>
 
-<script>
-import { Head, Link } from '@inertiajs/vue3'
-import { computed, ref } from 'vue'
+<script setup>
+import { Head, Link, useForm } from '@inertiajs/vue3'
+import { computed } from 'vue'
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 
-export default {
-  components: {
-    Link,
-    Head
+const props = defineProps({
+  tippers: {
+    type: Array,
+    default: () => []
   },
-  props: {
-    tippers: {
-      type: Array,
-      default: () => []
-    },
-    drivers: {
-      type: Array,
-      default: () => []
-    },
-    plants: {
-      type: Array,
-      default: () => []
-    },
-    errors: {
-      type: Object,
-      default: () => ({})
-    }
+  drivers: {
+    type: Array,
+    default: () => []
   },
-  setup(props) {
-    const processing = ref(false)
-
-    const form = ref({
-      tipper_number: '',
-      driver_id: '',
-      plant_id: '',
-      delivery_date: new Date().toISOString().split('T')[0],
-      delivery_time: '',
-      trip_amount: '',
-      paid_amount: ''
-    })
-
-    const availableDrivers = computed(() => {
-      if (!form.value.tipper_number) return []
-      return props.drivers.filter(driver => driver.tipper_number === form.value.tipper_number)
-    })
-
-    const balanceClass = computed(() => {
-      const balance = form.value.trip_amount - form.value.paid_amount
-      return balance > 0 ? 'text-red-600' : 'text-green-600'
-    })
-
-    const balanceStatus = computed(() => {
-      const balance = form.value.trip_amount - form.value.paid_amount
-      return balance > 0 ? 'Pending Payment' : 'Fully Paid'
-    })
-
-    const statusClass = computed(() => {
-      const balance = form.value.trip_amount - form.value.paid_amount
-      return balance > 0
-        ? 'bg-red-100 text-red-800'
-        : 'bg-green-100 text-green-800'
-    })
-
-    const onTipperChange = () => {
-      form.value.driver_id = ''
-    }
-
-    const submitForm = () => {
-      processing.value = true
-      window.$inertia.post(route('trips.store'), form.value, {
-        onFinish: () => processing.value = false
-      })
-    }
-
-    return {
-      form,
-      processing,
-      availableDrivers,
-      balanceClass,
-      balanceStatus,
-      statusClass,
-      onTipperChange,
-      submitForm
-    }
+  plants: {
+    type: Array,
+    default: () => []
   }
+})
+
+const form = useForm({
+  tipper_number: '',
+  driver_id: '',
+  plant_id: '',
+  delivery_date: new Date().toISOString().split('T')[0],
+  delivery_time: '',
+  trip_amount: '',
+  paid_amount: ''
+})
+
+const availableDrivers = computed(() => {
+  if (!form.tipper_number) return []
+  return props.drivers.filter(driver => driver.tipper_number === form.tipper_number)
+})
+
+const balanceClass = computed(() => {
+  const balance = form.trip_amount - form.paid_amount
+  return balance > 0 ? 'text-red-600' : 'text-green-600'
+})
+
+const balanceStatus = computed(() => {
+  const balance = form.trip_amount - form.paid_amount
+  return balance > 0 ? 'Pending Payment' : 'Fully Paid'
+})
+
+const statusClass = computed(() => {
+  const balance = form.trip_amount - form.paid_amount
+  return balance > 0
+    ? 'bg-red-100 text-red-800'
+    : 'bg-green-100 text-green-800'
+})
+
+const onTipperChange = () => {
+  form.driver_id = ''
+}
+
+const submitForm = () => {
+  form.post(route('trips.store'))
 }
 </script>

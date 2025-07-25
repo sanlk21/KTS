@@ -39,6 +39,7 @@ class TripController extends Controller
             'driver_id' => 'required|integer|exists:drivers,id',
             'plant_id' => 'required|integer|exists:plants,id',
             'delivery_date' => 'required|date',
+            'delivery_time' => 'nullable|date_format:H:i',
             'trip_amount' => 'required|numeric|min:0',
             'paid_amount' => 'required|numeric|min:0',
         ]);
@@ -57,6 +58,12 @@ class TripController extends Controller
             return redirect()->back()->withErrors(['error' => 'Driver is not assigned to this tipper'])->withInput();
         }
 
+        // Get plant information
+        $plant = Plant::find($request->plant_id);
+        if (!$plant) {
+            return redirect()->back()->withErrors(['plant_id' => 'Plant not found'])->withInput();
+        }
+
         // Validate paid amount doesn't exceed trip amount
         if ($request->paid_amount > $request->trip_amount) {
             return redirect()->back()->withErrors(['paid_amount' => 'Paid amount cannot exceed trip amount'])->withInput();
@@ -65,8 +72,11 @@ class TripController extends Controller
         Trip::create([
             'tipper_number' => $request->tipper_number,
             'driver_id' => $request->driver_id,
+            'driver_name' => $driver->name, // Add driver name
             'plant_id' => $request->plant_id,
+            'plant_name' => $plant->name, // Add plant name
             'delivery_date' => $request->delivery_date,
+            'delivery_time' => $request->delivery_time,
             'trip_amount' => $request->trip_amount,
             'paid_amount' => $request->paid_amount,
         ]);
@@ -104,6 +114,7 @@ class TripController extends Controller
             'driver_id' => 'required|integer|exists:drivers,id',
             'plant_id' => 'required|integer|exists:plants,id',
             'delivery_date' => 'required|date',
+            'delivery_time' => 'nullable|date_format:H:i',
             'trip_amount' => 'required|numeric|min:0',
             'paid_amount' => 'required|numeric|min:0',
         ]);
@@ -122,6 +133,12 @@ class TripController extends Controller
             return redirect()->back()->withErrors(['error' => 'Driver is not assigned to this tipper'])->withInput();
         }
 
+        // Get plant information
+        $plant = Plant::find($request->plant_id);
+        if (!$plant) {
+            return redirect()->back()->withErrors(['plant_id' => 'Plant not found'])->withInput();
+        }
+
         // Validate paid amount doesn't exceed trip amount
         if ($request->paid_amount > $request->trip_amount) {
             return redirect()->back()->withErrors(['paid_amount' => 'Paid amount cannot exceed trip amount'])->withInput();
@@ -130,8 +147,11 @@ class TripController extends Controller
         $trip->update([
             'tipper_number' => $request->tipper_number,
             'driver_id' => $request->driver_id,
+            'driver_name' => $driver->name, // Update driver name
             'plant_id' => $request->plant_id,
+            'plant_name' => $plant->name, // Update plant name
             'delivery_date' => $request->delivery_date,
+            'delivery_time' => $request->delivery_time,
             'trip_amount' => $request->trip_amount,
             'paid_amount' => $request->paid_amount,
         ]);
