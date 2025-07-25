@@ -50,24 +50,28 @@ Route::middleware('auth')->group(function () {
     Route::put('/drivers/{driver}', [DriverController::class, 'update'])->name('drivers.update');
     Route::delete('/drivers/{driver}', [DriverController::class, 'destroy'])->name('drivers.destroy');
 
-
     // Plant CRUD routes
     Route::get('/plants', [PlantController::class, 'index'])->name('plants.index');
     Route::get('/plants/create', [PlantController::class, 'create'])->name('plants.create');
     Route::post('/plants', [PlantController::class, 'store'])->name('plants.store');
     Route::get('/plants/{id}', [PlantController::class, 'show'])->name('plants.show');
-    // ADDED EDIT ROUTE
     Route::get('/plants/{id}/edit', [PlantController::class, 'edit'])->name('plants.edit');
     Route::put('/plants/{id}', [PlantController::class, 'update'])->name('plants.update');
     Route::delete('/plants/{id}', [PlantController::class, 'destroy'])->name('plants.destroy');
 
-    // Trip CRUD routes - IMPORTANT: specific routes before parameterized ones
-    Route::get('/trips/reports', [TripController::class, 'reports'])->name('trips.reports');
-    Route::get('/trips', [TripController::class, 'index'])->name('trips.index');
-    Route::post('/trips', [TripController::class, 'store'])->name('trips.store');
-    Route::get('/trips/{id}', [TripController::class, 'show'])->name('trips.show');
-    Route::put('/trips/{id}', [TripController::class, 'update'])->name('trips.update');
-    Route::delete('/trips/{id}', [TripController::class, 'destroy'])->name('trips.destroy');
+    // Trip CRUD routes - FIXED: Use only one approach
+    Route::prefix('trips')->group(function () {
+        Route::get('/reports', [TripController::class, 'reports'])->name('trips.reports');
+        Route::get('/', [TripController::class, 'index'])->name('trips.index');
+        Route::get('/create', [TripController::class, 'create'])->name('trips.create');
+        Route::post('/', [TripController::class, 'store'])->name('trips.store');
+        Route::get('/{id}', [TripController::class, 'show'])->name('trips.show'); // FIXED: lowercase 'show'
+        Route::get('/{id}/edit', [TripController::class, 'edit'])->name('trips.edit');
+        Route::put('/{id}', [TripController::class, 'update'])->name('trips.update');
+        Route::delete('/{id}', [TripController::class, 'destroy'])->name('trips.destroy');
+    });
+
+    // REMOVED: Duplicate resource route definition
 });
 
 require __DIR__ . '/auth.php';

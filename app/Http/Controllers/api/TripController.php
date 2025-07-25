@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Trip;
 use App\Models\Tipper;
+use App\Models\Driver;
+use App\Models\Plant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
@@ -13,7 +15,21 @@ class TripController extends Controller
 {
     public function index()
     {
-        return response()->json(Trip::with(['tipper', 'driver', 'plant'])->get());
+        $trips = Trip::with(['tipper', 'driver', 'plant'])->latest()->paginate(10);
+        return inertia('trips/index', ['trips' => $trips]);
+    }
+
+    public function create()
+    {
+        $drivers = Driver::all();
+        $plants = Plant::all();
+        $tippers = Tipper::all();
+
+        return inertia('trips/create', [
+            'drivers' => $drivers,
+            'plants' => $plants,
+            'tippers' => $tippers
+        ]);
     }
 
     public function store(Request $request)
@@ -28,22 +44,61 @@ class TripController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
+            return redirect()->back()->withErrors($validator)->withInput();
         }
 
         // Validate driver-tipper connection
-        $driver = \App\Models\Driver::find($request->driver_id);
-        if ($driver->tipper_number !== $request->tipper_number) {
-            return response()->json(['error' => 'Driver is not assigned to this tipper'], 422);
+        $driver = Driver::find($request->driver_id);
+        if (!$driver) {
+            return redirect()->back()->withErrors(['driver_id' => 'Driver not found'])->withInput();
         }
 
-        $trip = Trip::create($request->all());
-        return response()->json($trip, 201);
+        if ($driver->tipper_number !== $request->tipper_number) {
+            return redirect()->back()->withErrors(['error' => 'Driver is not assigned to this tipper'])->withInput();
+        }
+
+        // Validate paid amount doesn't exceed trip amount
+        if ($request->paid_amount > $request->trip_amount) {
+            return redirect()->back()->withErrors(['paid_amount' => 'Paid amount cannot exceed trip amount'])->withInput();
+        }
+
+        Trip::create([
+            'tipper_number' => $request->tipper_number,
+            'driver_id' => $request->driver_id,
+            'plant_id' => $request->plant_id,
+            'delivery_date' => $request->delivery_date,
+            'trip_amount' => $request->trip_amount,
+            'paid_amount' => $request->paid_amount,
+        ]);
+
+        return redirect()->route('trips.index')->with('success', 'Trip created successfully');
+    }
+
+    public function show($id)
+    {
+        $trip = Trip::with(['tipper', 'driver', 'plant'])->findOrFail($id);
+        return inertia('trips/show', ['trip' => $trip]);
+    }
+
+    public function edit($id)
+    {
+        $trip = Trip::findOrFail($id);
+        $drivers = Driver::all();
+        $plants = Plant::all();
+        $tippers = Tipper::all();
+
+        return inertia('trips/edit', [
+            'trip' => $trip,
+            'drivers' => $drivers,
+            'plants' => $plants,
+            'tippers' => $tippers
+        ]);
     }
 
     public function update(Request $request, $id)
     {
         $trip = Trip::findOrFail($id);
+
         $validator = Validator::make($request->all(), [
             'tipper_number' => 'required|string|exists:tippers,tipper_number',
             'driver_id' => 'required|integer|exists:drivers,id',
@@ -54,23 +109,40 @@ class TripController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
+            return redirect()->back()->withErrors($validator)->withInput();
         }
 
         // Validate driver-tipper connection
-        $driver = \App\Models\Driver::find($request->driver_id);
-        if ($driver->tipper_number !== $request->tipper_number) {
-            return response()->json(['error' => 'Driver is not assigned to this tipper'], 422);
+        $driver = Driver::find($request->driver_id);
+        if (!$driver) {
+            return redirect()->back()->withErrors(['driver_id' => 'Driver not found'])->withInput();
         }
 
-        $trip->update($request->all());
-        return response()->json($trip);
+        if ($driver->tipper_number !== $request->tipper_number) {
+            return redirect()->back()->withErrors(['error' => 'Driver is not assigned to this tipper'])->withInput();
+        }
+
+        // Validate paid amount doesn't exceed trip amount
+        if ($request->paid_amount > $request->trip_amount) {
+            return redirect()->back()->withErrors(['paid_amount' => 'Paid amount cannot exceed trip amount'])->withInput();
+        }
+
+        $trip->update([
+            'tipper_number' => $request->tipper_number,
+            'driver_id' => $request->driver_id,
+            'plant_id' => $request->plant_id,
+            'delivery_date' => $request->delivery_date,
+            'trip_amount' => $request->trip_amount,
+            'paid_amount' => $request->paid_amount,
+        ]);
+
+        return redirect()->route('trips.index')->with('success', 'Trip updated successfully');
     }
 
     public function destroy($id)
     {
         Trip::findOrFail($id)->delete();
-        return response()->json(null, 204);
+        return redirect()->route('trips.index')->with('success', 'Trip deleted successfully');
     }
 
     public function reports(Request $request)
@@ -105,10 +177,11 @@ class TripController extends Controller
             ->selectRaw('sum(trip_amount) as total_income, sum(trip_amount - paid_amount) as pending')
             ->first();
 
-        return response()->json([
+        return inertia('trips/reports', [
             'deliveries_by_plant' => $deliveriesByPlant,
             'driver_salaries' => $salaries,
             'income' => $income,
+            'period' => $period
         ]);
     }
 }
