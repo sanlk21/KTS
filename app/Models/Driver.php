@@ -15,7 +15,8 @@ class Driver extends Model
         'nic',
         'phone_number',
         'address',
-        'photo'
+        'photo',
+        'liaison_number',
     ];
 
     public function tipper()
