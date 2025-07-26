@@ -60,9 +60,6 @@ class TripController extends Controller
             return redirect()->back()->withErrors(['plant_id' => 'Plant not found'])->withInput();
         }
 
-        // Note: Removed the validation that paid_amount cannot exceed trip_amount
-        // since driver salary can be higher than the trip amount in some cases
-
         Trip::create([
             'tipper_number' => $request->tipper_number,
             'driver_id' => $request->driver_id,
@@ -159,27 +156,32 @@ class TripController extends Controller
         // Determine date range based on period
         $dateRange = $this->getDateRange($period, $startDate, $endDate);
 
+        // Create base query - FIXED: Don't apply plant filter here yet
         $baseQuery = Trip::with(['driver', 'plant'])
             ->whereBetween('delivery_date', [$dateRange['start'], $dateRange['end']]);
 
-        if ($plantId) {
-            $baseQuery->where('plant_id', $plantId);
+        // Create separate queries for different statistics
+        $summaryQuery = clone $baseQuery;
+        $driverQuery = clone $baseQuery;
+        $plantQuery = clone $baseQuery;
+        $trendQuery = clone $baseQuery;
+        $dailyQuery = clone $baseQuery;
+
+        // Apply plant filter only if specific plant is selected
+        if ($plantId && $plantId !== '') {
+            $summaryQuery->where('plant_id', $plantId);
+            $driverQuery->where('plant_id', $plantId);
+            $plantQuery->where('plant_id', $plantId);
+            $trendQuery->where('plant_id', $plantId);
+            $dailyQuery->where('plant_id', $plantId);
         }
 
-        // Summary statistics
-        $summary = $this->getSummaryStats($baseQuery);
-
-        // Driver statistics
-        $driverStats = $this->getDriverStats($baseQuery);
-
-        // Plant statistics
-        $plantStats = $this->getPlantStats($baseQuery);
-
-        // Revenue trend data
-        $revenueTrend = $this->getRevenueTrend($baseQuery, $period);
-
-        // Daily income breakdown
-        $dailyIncome = $this->getDailyIncomeBreakdown($baseQuery, $period);
+        // Get statistics
+        $summary = $this->getSummaryStats($summaryQuery);
+        $driverStats = $this->getDriverStats($driverQuery);
+        $plantStats = $this->getPlantStats($plantQuery);
+        $revenueTrend = $this->getRevenueTrend($trendQuery, $period);
+        $dailyIncome = $this->getDailyIncomeBreakdown($dailyQuery, $period);
 
         $reportData = [
             'summary' => $summary,
@@ -188,7 +190,8 @@ class TripController extends Controller
             'revenue_trend' => $revenueTrend,
             'daily_income' => $dailyIncome,
             'period' => $period,
-            'date_range' => $dateRange
+            'date_range' => $dateRange,
+            'selected_plant_id' => $plantId
         ];
 
         // Handle export requests
@@ -252,9 +255,9 @@ class TripController extends Controller
         }
     }
 
-    private function getSummaryStats($baseQuery)
+    private function getSummaryStats($query)
     {
-        $results = $baseQuery->selectRaw('
+        $results = $query->selectRaw('
             COUNT(*) as total_trips,
             SUM(trip_amount) as total_revenue,
             SUM(paid_amount) as total_expenses,
@@ -274,9 +277,9 @@ class TripController extends Controller
         ];
     }
 
-    private function getDriverStats($baseQuery)
+    private function getDriverStats($query)
     {
-        // First, let's check what columns exist in the drivers table
+        // Check what columns exist in the drivers table
         $driverColumns = DB::getSchemaBuilder()->getColumnListing('drivers');
         $hasPhone = in_array('phone', $driverColumns);
         $hasContact = in_array('contact', $driverColumns);
@@ -304,64 +307,66 @@ class TripController extends Controller
         } elseif ($hasMobile) {
             $selectColumns[] = 'drivers.mobile as phone';
             $groupByColumns[] = 'drivers.mobile';
+        } else {
+            // Add a default phone column if none exists
+            $selectColumns[] = DB::raw("'N/A' as phone");
         }
 
-        return $baseQuery->select($selectColumns)
-        ->join('drivers', 'trips.driver_id', '=', 'drivers.id')
-        ->groupBy($groupByColumns)
-        ->orderByDesc('total_trips')
+        return $query->select($selectColumns)
+            ->join('drivers', 'trips.driver_id', '=', 'drivers.id')
+            ->groupBy($groupByColumns)
+            ->orderByDesc('total_trips')
+            ->get()
+            ->map(function ($driver) {
+                return [
+                    'id' => $driver->id,
+                    'name' => $driver->name,
+                    'phone' => $driver->phone ?? 'N/A',
+                    'total_trips' => (int) $driver->total_trips,
+                    'total_salary' => (float) $driver->total_salary,
+                    'avg_per_trip' => (float) $driver->avg_per_trip,
+                    'total_income_generated' => (float) $driver->total_income_generated,
+                    'efficiency_score' => $driver->total_trips > 0 ?
+                        round($driver->total_income_generated / $driver->total_trips, 2) : 0
+                ];
+            });
+    }
+
+    private function getPlantStats($query)
+    {
+        return $query->select([
+            'plants.id',
+            'plants.name',
+            DB::raw('COUNT(*) as total_trips'),
+            DB::raw('SUM(trip_amount) as total_amount'),
+            DB::raw('AVG(trip_amount) as avg_per_trip'),
+            DB::raw('SUM(paid_amount) as total_driver_costs'),
+            DB::raw('SUM(trip_amount - paid_amount) as total_profit')
+        ])
+        ->join('plants', 'trips.plant_id', '=', 'plants.id')
+        ->groupBy('plants.id', 'plants.name')
+        ->orderByDesc('total_amount')
         ->get()
-        ->map(function ($driver) {
+        ->map(function ($plant) {
             return [
-                'id' => $driver->id,
-                'name' => $driver->name,
-                'phone' => $driver->phone ?? 'N/A',
-                'total_trips' => (int) $driver->total_trips,
-                'total_salary' => (float) $driver->total_salary,
-                'avg_per_trip' => (float) $driver->avg_per_trip,
-                'total_income_generated' => (float) $driver->total_income_generated,
-                'efficiency_score' => $driver->total_trips > 0 ?
-                    round($driver->total_income_generated / $driver->total_trips, 2) : 0
+                'id' => $plant->id,
+                'name' => $plant->name,
+                'total_trips' => (int) $plant->total_trips,
+                'total_amount' => (float) $plant->total_amount,
+                'avg_per_trip' => (float) $plant->avg_per_trip,
+                'total_driver_costs' => (float) $plant->total_driver_costs,
+                'total_profit' => (float) $plant->total_profit,
+                'profit_margin' => $plant->total_amount > 0 ?
+                    round(($plant->total_profit / $plant->total_amount) * 100, 2) : 0
             ];
         });
     }
 
-   private function getPlantStats($baseQuery)
-{
-    return $baseQuery->select([
-        'plants.id',
-        'plants.name',
-        DB::raw('COUNT(*) as total_trips'),
-        DB::raw('SUM(trip_amount) as total_amount'),
-        DB::raw('AVG(trip_amount) as avg_per_trip'),
-        DB::raw('SUM(paid_amount) as total_driver_costs'),
-        DB::raw('SUM(trip_amount - paid_amount) as total_profit')
-    ])
-    ->join('plants', 'trips.plant_id', '=', 'plants.id')
-    ->groupBy('plants.id', 'plants.name') // Removed plants.location
-    ->orderByDesc('total_amount')
-    ->get()
-    ->map(function ($plant) {
-        return [
-            'id' => $plant->id,
-            'name' => $plant->name,
-            'location' => 'N/A', // Set location to 'N/A' or remove it
-            'total_trips' => (int) $plant->total_trips,
-            'total_amount' => (float) $plant->total_amount,
-            'avg_per_trip' => (float) $plant->avg_per_trip,
-            'total_driver_costs' => (float) $plant->total_driver_costs,
-            'total_profit' => (float) $plant->total_profit,
-            'profit_margin' => $plant->total_amount > 0 ?
-                round(($plant->total_profit / $plant->total_amount) * 100, 2) : 0
-        ];
-    });
-}
-
-    private function getRevenueTrend($baseQuery, $period)
+    private function getRevenueTrend($query, $period)
     {
         $format = $this->getDateFormat($period);
 
-        $data = $baseQuery->selectRaw("
+        $data = $query->selectRaw("
             DATE_FORMAT(delivery_date, '{$format}') as date_label,
             SUM(trip_amount) as revenue,
             SUM(paid_amount) as expenses,
@@ -381,9 +386,9 @@ class TripController extends Controller
         ];
     }
 
-    private function getDailyIncomeBreakdown($baseQuery, $period)
+    private function getDailyIncomeBreakdown($query, $period)
     {
-        $data = $baseQuery->selectRaw('
+        $data = $query->selectRaw('
             DATE(delivery_date) as date,
             SUM(trip_amount - paid_amount) as daily_income,
             COUNT(*) as daily_trips

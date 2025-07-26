@@ -76,6 +76,16 @@
             </select>
           </div>
         </div>
+        <!-- Loading Indicator -->
+        <div v-if="loading" class="mt-4 text-center">
+          <div class="inline-flex items-center">
+            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Loading data...
+          </div>
+        </div>
       </div>
 
       <!-- Summary Cards -->
@@ -141,7 +151,7 @@
         </div>
       </div>
 
-      <!-- Charts Section - UPDATED WITH BETTER VISIBILITY -->
+      <!-- Charts Section -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <!-- Revenue Trend Chart -->
         <div class="bg-white rounded-lg shadow-md p-6">
@@ -163,7 +173,11 @@
       <!-- Driver Performance Table -->
       <div class="bg-white rounded-lg shadow-md mb-8">
         <div class="px-6 py-4 border-b border-gray-200">
-          <h3 class="text-lg font-semibold text-gray-900">Driver Performance</h3>
+          <h3 class="text-lg font-semibold text-gray-900">
+            Driver Performance
+            <span v-if="selectedPlantName" class="text-sm text-gray-500">({{ selectedPlantName }})</span>
+            <span v-else class="text-sm text-gray-500">(All Plants)</span>
+          </h3>
         </div>
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200">
@@ -177,6 +191,11 @@
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
+              <tr v-if="filteredDriverStats.length === 0">
+                <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                  {{ loading ? 'Loading drivers...' : 'No drivers found for the selected criteria' }}
+                </td>
+              </tr>
               <tr v-for="driver in filteredDriverStats" :key="driver.id" class="hover:bg-gray-50">
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div class="flex items-center">
@@ -220,7 +239,11 @@
       <!-- Plant Performance Table -->
       <div class="bg-white rounded-lg shadow-md mb-8">
         <div class="px-6 py-4 border-b border-gray-200">
-          <h3 class="text-lg font-semibold text-gray-900">Plant Performance</h3>
+          <h3 class="text-lg font-semibold text-gray-900">
+            Plant Performance
+            <span v-if="selectedPlantName" class="text-sm text-gray-500">({{ selectedPlantName }} only)</span>
+            <span v-else class="text-sm text-gray-500">(All Plants)</span>
+          </h3>
         </div>
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200">
@@ -234,6 +257,11 @@
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
+              <tr v-if="filteredPlantStats.length === 0">
+                <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                  {{ loading ? 'Loading plants...' : 'No plants found for the selected criteria' }}
+                </td>
+              </tr>
               <tr v-for="plant in filteredPlantStats" :key="plant.id" class="hover:bg-gray-50">
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div class="flex items-center">
@@ -273,10 +301,14 @@
         </div>
       </div>
 
-      <!-- Daily Income Breakdown - UPDATED WITH BETTER VISIBILITY -->
+      <!-- Daily Income Breakdown -->
       <div class="bg-white rounded-lg shadow-md">
         <div class="px-6 py-4 border-b border-gray-200">
-          <h3 class="text-lg font-semibold text-gray-900">Daily Income Breakdown</h3>
+          <h3 class="text-lg font-semibold text-gray-900">
+            Daily Income Breakdown
+            <span v-if="selectedPlantName" class="text-sm text-gray-500">({{ selectedPlantName }})</span>
+            <span v-else class="text-sm text-gray-500">(All Plants)</span>
+          </h3>
         </div>
         <div class="p-6">
           <div class="w-full" style="height: 500px; min-height: 500px;">
@@ -314,9 +346,18 @@ const filters = ref({
 })
 
 const reportData = ref(props.reportData || {})
+const loading = ref(false)
 const revenueChart = ref(null)
 const plantChart = ref(null)
 const dailyIncomeChart = ref(null)
+let chartInstances = {}
+
+// Initialize filters from current report data
+onMounted(() => {
+  if (props.reportData?.selected_plant_id) {
+    filters.value.plantId = props.reportData.selected_plant_id
+  }
+})
 
 // Computed properties
 const summary = computed(() => {
@@ -327,6 +368,14 @@ const summary = computed(() => {
     totalExpenses: data.summary?.total_expenses || 0,
     netIncome: (data.summary?.total_revenue || 0) - (data.summary?.total_expenses || 0)
   }
+})
+
+const selectedPlantName = computed(() => {
+  if (filters.value.plantId) {
+    const plant = props.plants.find(p => p.id == filters.value.plantId)
+    return plant ? plant.name : ''
+  }
+  return ''
 })
 
 const filteredDriverStats = computed(() => {
@@ -363,6 +412,8 @@ const formatCurrency = (value) => {
 }
 
 const fetchReports = () => {
+  loading.value = true
+
   const params = {
     period: filters.value.period,
     plant_id: filters.value.plantId
@@ -377,9 +428,14 @@ const fetchReports = () => {
     preserveState: true,
     onSuccess: (page) => {
       reportData.value = page.props.reportData || {}
+      loading.value = false
       nextTick(() => {
+        destroyCharts()
         initCharts()
       })
+    },
+    onError: () => {
+      loading.value = false
     }
   })
 }
@@ -399,11 +455,22 @@ const exportReport = () => {
   window.open(`${route('trips.reports')}?${params.toString()}`, '_blank')
 }
 
+const destroyCharts = () => {
+  Object.values(chartInstances).forEach(chart => {
+    if (chart) {
+      chart.destroy()
+    }
+  })
+  chartInstances = {}
+}
+
 const initCharts = () => {
+  if (!window.Chart) return
+
   // Revenue Trend Chart
   if (revenueChart.value) {
     const ctx = revenueChart.value.getContext('2d')
-    new Chart(ctx, {
+    chartInstances.revenue = new Chart(ctx, {
       type: 'line',
       data: {
         labels: reportData.value.revenue_trend?.labels || [],
@@ -411,7 +478,7 @@ const initCharts = () => {
           {
             label: 'Revenue',
             data: reportData.value.revenue_trend?.revenue || [],
-            borderColor: '#3b82f6', // Blue
+            borderColor: '#3b82f6',
             backgroundColor: 'rgba(59, 130, 246, 0.2)',
             tension: 0.4,
             fill: true
@@ -419,7 +486,7 @@ const initCharts = () => {
           {
             label: 'Expenses',
             data: reportData.value.revenue_trend?.expenses || [],
-            borderColor: '#ef4444', // Red
+            borderColor: '#ef4444',
             backgroundColor: 'rgba(239, 68, 68, 0.2)',
             tension: 0.4,
             fill: true
@@ -427,7 +494,7 @@ const initCharts = () => {
           {
             label: 'Profit',
             data: reportData.value.revenue_trend?.profit || [],
-            borderColor: '#22c55e', // Green
+            borderColor: '#22c55e',
             backgroundColor: 'rgba(34, 197, 94, 0.2)',
             tension: 0.4,
             fill: true
@@ -444,7 +511,12 @@ const initCharts = () => {
           },
           tooltip: {
             mode: 'index',
-            intersect: false
+            intersect: false,
+            callbacks: {
+              label: function(context) {
+                return `${context.dataset.label}: Rs. ${new Intl.NumberFormat('en-IN').format(context.raw)}`;
+              }
+            }
           }
         },
         scales: {
@@ -453,6 +525,11 @@ const initCharts = () => {
             title: {
               display: true,
               text: 'Amount (Rs.)'
+            },
+            ticks: {
+              callback: function(value) {
+                return 'Rs. ' + new Intl.NumberFormat('en-IN').format(value);
+              }
             }
           }
         }
@@ -464,7 +541,7 @@ const initCharts = () => {
   if (plantChart.value) {
     const ctx = plantChart.value.getContext('2d')
     const plants = reportData.value.plant_stats || []
-    new Chart(ctx, {
+    chartInstances.plant = new Chart(ctx, {
       type: 'doughnut',
       data: {
         labels: plants.map(p => p.name),
@@ -476,7 +553,7 @@ const initCharts = () => {
             '#6366f1', '#f59e0b'
           ],
           borderColor: '#ffffff',
-          borderWidth: 1
+          borderWidth: 2
         }]
       },
       options: {
@@ -490,7 +567,9 @@ const initCharts = () => {
           tooltip: {
             callbacks: {
               label: function(context) {
-                return `${context.label}: ${context.raw} trips`;
+                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                const percentage = ((context.raw / total) * 100).toFixed(1);
+                return `${context.label}: ${context.raw} trips (${percentage}%)`;
               }
             }
           }
@@ -502,15 +581,15 @@ const initCharts = () => {
   // Daily Income Chart
   if (dailyIncomeChart.value) {
     const ctx = dailyIncomeChart.value.getContext('2d')
-    new Chart(ctx, {
+    chartInstances.daily = new Chart(ctx, {
       type: 'bar',
       data: {
         labels: reportData.value.daily_income?.labels || [],
         datasets: [{
-          label: 'Income',
+          label: 'Daily Income',
           data: reportData.value.daily_income?.data || [],
-          backgroundColor: '#22c55e', // Green
-          borderColor: '#ffffff',
+          backgroundColor: 'rgba(34, 197, 94, 0.8)',
+          borderColor: '#22c55e',
           borderWidth: 1
         }]
       },
@@ -520,6 +599,13 @@ const initCharts = () => {
         plugins: {
           legend: {
             display: true
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return `${context.dataset.label}: Rs. ${new Intl.NumberFormat('en-IN').format(context.raw)}`;
+              }
+            }
           }
         },
         scales: {
@@ -528,6 +614,11 @@ const initCharts = () => {
             title: {
               display: true,
               text: 'Income (Rs.)'
+            },
+            ticks: {
+              callback: function(value) {
+                return 'Rs. ' + new Intl.NumberFormat('en-IN').format(value);
+              }
             }
           }
         }
