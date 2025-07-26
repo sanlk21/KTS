@@ -41,8 +41,9 @@ class TripController extends Controller
             'plant_id' => 'required|integer|exists:plants,id',
             'delivery_date' => 'required|date',
             'delivery_time' => 'nullable|date_format:H:i',
-            'trip_amount' => 'required|numeric|min:0',
-            'paid_amount' => 'required|numeric|min:0',
+            'trip_amount_per_trip' => 'required|numeric|min:0',
+            'driver_salary_per_trip' => 'required|numeric|min:0',
+            'total_trips' => 'required|integer|min:1|max:50', // Added validation for total trips
         ]);
 
         if ($validator->fails()) {
@@ -60,25 +61,67 @@ class TripController extends Controller
             return redirect()->back()->withErrors(['plant_id' => 'Plant not found'])->withInput();
         }
 
-        Trip::create([
-            'tipper_number' => $request->tipper_number,
-            'driver_id' => $request->driver_id,
-            'driver_name' => $driver->name,
-            'plant_id' => $request->plant_id,
-            'plant_name' => $plant->name,
-            'delivery_date' => $request->delivery_date,
-            'delivery_time' => $request->delivery_time,
-            'trip_amount' => $request->trip_amount,
-            'paid_amount' => $request->paid_amount,
-        ]);
+        // Calculate totals
+        $totalTripAmount = $request->trip_amount_per_trip * $request->total_trips;
+        $totalDriverSalary = $request->driver_salary_per_trip * $request->total_trips;
 
-        return redirect()->route('trips.index')->with('success', 'Trip created successfully');
+        try {
+            DB::beginTransaction();
+
+            // Create multiple trips
+            for ($i = 1; $i <= $request->total_trips; $i++) {
+                Trip::create([
+                    'tipper_number' => $request->tipper_number,
+                    'driver_id' => $request->driver_id,
+                    'driver_name' => $driver->name,
+                    'plant_id' => $request->plant_id,
+                    'plant_name' => $plant->name,
+                    'delivery_date' => $request->delivery_date,
+                    'delivery_time' => $request->delivery_time,
+                    'trip_amount' => $request->trip_amount_per_trip,
+                    'paid_amount' => $request->driver_salary_per_trip,
+                    'trip_number' => $i, // Added trip number for reference
+                    'batch_id' => uniqid(), // Added batch ID to group related trips
+                    'total_trips_in_batch' => $request->total_trips,
+                    'total_batch_amount' => $totalTripAmount,
+                    'total_batch_salary' => $totalDriverSalary,
+                    'net_income_per_trip' => $request->trip_amount_per_trip - $request->driver_salary_per_trip,
+                    'total_net_income' => $totalTripAmount - $totalDriverSalary,
+                ]);
+            }
+
+            DB::commit();
+
+            return redirect()->route('trips.index')->with('success',
+                "Successfully created {$request->total_trips} trips. Total Amount: $" . number_format($totalTripAmount, 2) .
+                ", Total Driver Salary: $" . number_format($totalDriverSalary, 2) .
+                ", Your Net Income: $" . number_format($totalTripAmount - $totalDriverSalary, 2)
+            );
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            return redirect()->back()->withErrors(['error' => 'Failed to create trips: ' . $e->getMessage()])->withInput();
+        }
     }
 
     public function show($id)
     {
         $trip = Trip::with(['tipper', 'driver', 'plant'])->findOrFail($id);
-        return inertia('trips/show', ['trip' => $trip]);
+
+        // Get related trips in the same batch if batch_id exists
+        $relatedTrips = [];
+        if ($trip->batch_id) {
+            $relatedTrips = Trip::with(['tipper', 'driver', 'plant'])
+                ->where('batch_id', $trip->batch_id)
+                ->where('id', '!=', $id)
+                ->orderBy('trip_number')
+                ->get();
+        }
+
+        return inertia('trips/show', [
+            'trip' => $trip,
+            'relatedTrips' => $relatedTrips
+        ]);
     }
 
     public function edit($id)
@@ -135,6 +178,7 @@ class TripController extends Controller
             'delivery_time' => $request->delivery_time,
             'trip_amount' => $request->trip_amount,
             'paid_amount' => $request->paid_amount,
+            'net_income_per_trip' => $request->trip_amount - $request->paid_amount,
         ]);
 
         return redirect()->route('trips.index')->with('success', 'Trip updated successfully');
@@ -144,6 +188,19 @@ class TripController extends Controller
     {
         Trip::findOrFail($id)->delete();
         return redirect()->route('trips.index')->with('success', 'Trip deleted successfully');
+    }
+
+    // New method to delete entire batch
+    public function destroyBatch($batchId)
+    {
+        try {
+            $tripsCount = Trip::where('batch_id', $batchId)->count();
+            Trip::where('batch_id', $batchId)->delete();
+
+            return redirect()->route('trips.index')->with('success', "Successfully deleted {$tripsCount} trips from batch");
+        } catch (\Exception $e) {
+            return redirect()->back()->withErrors(['error' => 'Failed to delete batch: ' . $e->getMessage()]);
+        }
     }
 
     public function reports(Request $request)
@@ -182,6 +239,7 @@ class TripController extends Controller
         $plantStats = $this->getPlantStats($plantQuery);
         $revenueTrend = $this->getRevenueTrend($trendQuery, $period);
         $dailyIncome = $this->getDailyIncomeBreakdown($dailyQuery, $period);
+        $batchStats = $this->getBatchStats($baseQuery); // New batch statistics
 
         $reportData = [
             'summary' => $summary,
@@ -189,6 +247,7 @@ class TripController extends Controller
             'plant_stats' => $plantStats,
             'revenue_trend' => $revenueTrend,
             'daily_income' => $dailyIncome,
+            'batch_stats' => $batchStats,
             'period' => $period,
             'date_range' => $dateRange,
             'selected_plant_id' => $plantId
@@ -205,6 +264,42 @@ class TripController extends Controller
             'reportData' => $reportData,
             'plants' => $plants
         ]);
+    }
+
+    // New method for batch statistics
+    private function getBatchStats($query)
+    {
+        return $query->select([
+            'batch_id',
+            'delivery_date',
+            'driver_name',
+            'plant_name',
+            DB::raw('COUNT(*) as trips_in_batch'),
+            DB::raw('SUM(trip_amount) as batch_revenue'),
+            DB::raw('SUM(paid_amount) as batch_expenses'),
+            DB::raw('SUM(trip_amount - paid_amount) as batch_profit'),
+            DB::raw('AVG(trip_amount) as avg_trip_amount'),
+        ])
+        ->whereNotNull('batch_id')
+        ->groupBy('batch_id', 'delivery_date', 'driver_name', 'plant_name')
+        ->orderByDesc('delivery_date')
+        ->limit(20)
+        ->get()
+        ->map(function ($batch) {
+            return [
+                'batch_id' => $batch->batch_id,
+                'delivery_date' => $batch->delivery_date,
+                'driver_name' => $batch->driver_name,
+                'plant_name' => $batch->plant_name,
+                'trips_in_batch' => (int) $batch->trips_in_batch,
+                'batch_revenue' => (float) $batch->batch_revenue,
+                'batch_expenses' => (float) $batch->batch_expenses,
+                'batch_profit' => (float) $batch->batch_profit,
+                'avg_trip_amount' => (float) $batch->avg_trip_amount,
+                'profit_margin' => $batch->batch_revenue > 0 ?
+                    round(($batch->batch_profit / $batch->batch_revenue) * 100, 2) : 0
+            ];
+        });
     }
 
     private function getDateRange($period, $startDate = null, $endDate = null)
@@ -262,11 +357,13 @@ class TripController extends Controller
             SUM(trip_amount) as total_revenue,
             SUM(paid_amount) as total_expenses,
             AVG(trip_amount) as avg_trip_amount,
-            AVG(paid_amount) as avg_driver_salary
+            AVG(paid_amount) as avg_driver_salary,
+            COUNT(DISTINCT batch_id) as total_batches
         ')->first();
 
         return [
             'total_trips' => (int) $results->total_trips,
+            'total_batches' => (int) $results->total_batches,
             'total_revenue' => (float) $results->total_revenue,
             'total_expenses' => (float) $results->total_expenses,
             'net_income' => (float) ($results->total_revenue - $results->total_expenses),
@@ -290,6 +387,7 @@ class TripController extends Controller
             'drivers.id',
             'drivers.name',
             DB::raw('COUNT(*) as total_trips'),
+            DB::raw('COUNT(DISTINCT batch_id) as total_batches'),
             DB::raw('SUM(paid_amount) as total_salary'),
             DB::raw('AVG(paid_amount) as avg_per_trip'),
             DB::raw('SUM(trip_amount - paid_amount) as total_income_generated')
@@ -323,6 +421,7 @@ class TripController extends Controller
                     'name' => $driver->name,
                     'phone' => $driver->phone ?? 'N/A',
                     'total_trips' => (int) $driver->total_trips,
+                    'total_batches' => (int) $driver->total_batches,
                     'total_salary' => (float) $driver->total_salary,
                     'avg_per_trip' => (float) $driver->avg_per_trip,
                     'total_income_generated' => (float) $driver->total_income_generated,
@@ -338,6 +437,7 @@ class TripController extends Controller
             'plants.id',
             'plants.name',
             DB::raw('COUNT(*) as total_trips'),
+            DB::raw('COUNT(DISTINCT batch_id) as total_batches'),
             DB::raw('SUM(trip_amount) as total_amount'),
             DB::raw('AVG(trip_amount) as avg_per_trip'),
             DB::raw('SUM(paid_amount) as total_driver_costs'),
@@ -352,6 +452,7 @@ class TripController extends Controller
                 'id' => $plant->id,
                 'name' => $plant->name,
                 'total_trips' => (int) $plant->total_trips,
+                'total_batches' => (int) $plant->total_batches,
                 'total_amount' => (float) $plant->total_amount,
                 'avg_per_trip' => (float) $plant->avg_per_trip,
                 'total_driver_costs' => (float) $plant->total_driver_costs,
@@ -371,7 +472,8 @@ class TripController extends Controller
             SUM(trip_amount) as revenue,
             SUM(paid_amount) as expenses,
             SUM(trip_amount - paid_amount) as profit,
-            COUNT(*) as trips
+            COUNT(*) as trips,
+            COUNT(DISTINCT batch_id) as batches
         ")
         ->groupBy('date_label')
         ->orderBy('delivery_date')
@@ -382,7 +484,8 @@ class TripController extends Controller
             'revenue' => $data->pluck('revenue')->toArray(),
             'expenses' => $data->pluck('expenses')->toArray(),
             'profit' => $data->pluck('profit')->toArray(),
-            'trips' => $data->pluck('trips')->toArray()
+            'trips' => $data->pluck('trips')->toArray(),
+            'batches' => $data->pluck('batches')->toArray()
         ];
     }
 
@@ -391,7 +494,8 @@ class TripController extends Controller
         $data = $query->selectRaw('
             DATE(delivery_date) as date,
             SUM(trip_amount - paid_amount) as daily_income,
-            COUNT(*) as daily_trips
+            COUNT(*) as daily_trips,
+            COUNT(DISTINCT batch_id) as daily_batches
         ')
         ->groupBy('date')
         ->orderBy('date')
@@ -402,7 +506,8 @@ class TripController extends Controller
                 return Carbon::parse($date)->format('M d');
             })->toArray(),
             'data' => $data->pluck('daily_income')->toArray(),
-            'trips' => $data->pluck('daily_trips')->toArray()
+            'trips' => $data->pluck('daily_trips')->toArray(),
+            'batches' => $data->pluck('daily_batches')->toArray()
         ];
     }
 
