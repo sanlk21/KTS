@@ -1,311 +1,314 @@
 <template>
-  <div class="container mx-auto px-4 py-8">
-    <div class="flex justify-between items-center mb-6">
-      <h1 class="text-3xl font-bold text-gray-900">Trip Details #{{ trip.id }}</h1>
-      <div class="flex space-x-4">
-        <Link :href="route('trips.edit', trip.id)" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-          Edit Trip
-        </Link>
-        <button @click="deleteTrip" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
-          Delete Trip
-        </button>
-        <Link :href="route('trips.index')" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-          Back to Trips
-        </Link>
+  <AuthenticatedLayout>
+    <div class="container mx-auto px-4 py-8">
+      <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Trip Details</h1>
+        <div class="flex space-x-2">
+          <Link :href="route('trips.edit', trip.id)" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            Edit Trip
+          </Link>
+          <button
+            @click="deleteTrip"
+            class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+            :disabled="deleteForm.processing"
+          >
+            {{ deleteForm.processing ? 'Deleting...' : 'Delete Trip' }}
+          </button>
+          <Link :href="route('trips.index')" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+            Back to Trips
+          </Link>
+        </div>
       </div>
-    </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <!-- Trip Information -->
-      <div class="lg:col-span-2">
-        <div class="bg-white rounded-lg shadow-md p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Trip Information</h2>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="space-y-4">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Main Trip Information -->
+        <div class="lg:col-span-2">
+          <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="flex justify-between items-start mb-6">
               <div>
-                <label class="block text-sm font-medium text-gray-500">Trip ID</label>
-                <p class="text-lg font-semibold text-gray-900">{{ trip.id }}</p>
+                <h2 class="text-2xl font-bold text-gray-900">Trip #{{ trip.id }}</h2>
+                <p class="text-gray-600 mt-1">{{ formatDate(trip.delivery_date) }}</p>
               </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-500">Tipper Number</label>
-                <p class="text-lg text-gray-900">{{ trip.tipper_number }}</p>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-500">Driver Name</label>
-                <p class="text-lg text-gray-900">{{ trip.driver_name }}</p>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-500">Plant Name</label>
-                <p class="text-lg text-gray-900">{{ trip.plant_name }}</p>
+              <div class="text-right">
+                <span :class="statusBadgeClass" class="px-3 py-1 text-sm font-semibold rounded-full">
+                  {{ tripStatus }}
+                </span>
               </div>
             </div>
 
-            <div class="space-y-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-500">Delivery Date</label>
-                <p class="text-lg text-gray-900">{{ formatDate(trip.delivery_date) }}</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <!-- Tipper Information -->
+              <div class="border-l-4 border-blue-500 pl-4">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">Tipper Information</h3>
+                <div class="space-y-2">
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Tipper Number:</span>
+                    <span class="font-medium text-gray-900">{{ trip.tipper_number }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Size:</span>
+                    <span class="font-medium text-gray-900">{{ trip.tipper?.size }} Ton</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Type:</span>
+                    <span class="font-medium text-gray-900">{{ trip.tipper?.type || 'N/A' }}</span>
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label class="block text-sm font-medium text-gray-500">Delivery Time</label>
-                <p class="text-lg text-gray-900">{{ formatTime(trip.delivery_time) }}</p>
+              <!-- Driver Information -->
+              <div class="border-l-4 border-green-500 pl-4">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">Driver Information</h3>
+                <div class="space-y-2">
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Name:</span>
+                    <span class="font-medium text-gray-900">{{ trip.driver?.name || trip.driver_name }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Phone:</span>
+                    <span class="font-medium text-gray-900">{{ trip.driver?.phone || 'N/A' }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">License:</span>
+                    <span class="font-medium text-gray-900">{{ trip.driver?.license_number || 'N/A' }}</span>
+                  </div>
+                  <div v-if="!isDriverAssignedToTipper" class="mt-2">
+                    <span class="px-2 py-1 bg-amber-100 text-amber-800 text-xs rounded-full">
+                      Not assigned to this tipper
+                    </span>
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label class="block text-sm font-medium text-gray-500">Created At</label>
-                <p class="text-lg text-gray-900">{{ formatDateTime(trip.created_at) }}</p>
+              <!-- Plant Information -->
+              <div class="border-l-4 border-purple-500 pl-4">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">Plant Information</h3>
+                <div class="space-y-2">
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Name:</span>
+                    <span class="font-medium text-gray-900">{{ trip.plant?.name || trip.plant_name }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Location:</span>
+                    <span class="font-medium text-gray-900">{{ trip.plant?.location || 'N/A' }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Contact:</span>
+                    <span class="font-medium text-gray-900">{{ trip.plant?.contact_number || 'N/A' }}</span>
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label class="block text-sm font-medium text-gray-500">Last Updated</label>
-                <p class="text-lg text-gray-900">{{ formatDateTime(trip.updated_at) }}</p>
+              <!-- Delivery Information -->
+              <div class="border-l-4 border-orange-500 pl-4">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">Delivery Information</h3>
+                <div class="space-y-2">
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Date:</span>
+                    <span class="font-medium text-gray-900">{{ formatDate(trip.delivery_date) }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Time:</span>
+                    <span class="font-medium text-gray-900">{{ trip.delivery_time || 'Not specified' }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Status:</span>
+                    <span class="font-medium text-gray-900">{{ deliveryStatus }}</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Related Information -->
-        <div class="mt-6 bg-white rounded-lg shadow-md p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Related Information</h2>
-
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <!-- Tipper Details -->
-            <div v-if="trip.tipper" class="border rounded-lg p-4">
-              <h3 class="font-semibold text-gray-900 mb-2">Tipper Details</h3>
-              <div class="space-y-2 text-sm">
-                <p><span class="font-medium">Number:</span> {{ trip.tipper.tipper_number }}</p>
-                <p><span class="font-medium">Size:</span> {{ trip.tipper.size }} Ton</p>
-                <p><span class="font-medium">Capacity:</span> {{ trip.tipper.capacity }} m³</p>
-                <p><span class="font-medium">Status:</span>
-                  <span :class="trip.tipper.status === 'active' ? 'text-green-600' : 'text-red-600'">
-                    {{ trip.tipper.status }}
-                  </span>
-                </p>
+        <!-- Financial Summary & Income Analysis -->
+        <div class="lg:col-span-1">
+          <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Financial Summary</h3>
+            <div class="space-y-4">
+              <div class="flex justify-between items-center p-3 bg-blue-50 rounded">
+                <span class="text-gray-600">Trip Amount (from Plant):</span>
+                <span class="text-lg font-bold text-blue-600">${{ parseFloat(trip.trip_amount).toFixed(2) }}</span>
               </div>
-            </div>
-
-            <!-- Driver Details -->
-            <div v-if="trip.driver" class="border rounded-lg p-4">
-              <h3 class="font-semibold text-gray-900 mb-2">Driver Details</h3>
-              <div class="space-y-2 text-sm">
-                <p><span class="font-medium">Name:</span> {{ trip.driver.name }}</p>
-                <p><span class="font-medium">Phone:</span> {{ trip.driver.phone }}</p>
-                <p><span class="font-medium">License:</span> {{ trip.driver.license_number }}</p>
-                <p><span class="font-medium">Status:</span>
-                  <span :class="trip.driver.status === 'active' ? 'text-green-600' : 'text-red-600'">
-                    {{ trip.driver.status }}
-                  </span>
-                </p>
+              <div class="flex justify-between items-center p-3 bg-orange-50 rounded">
+                <span class="text-gray-600">Driver Salary:</span>
+                <span class="text-lg font-bold text-orange-600">${{ parseFloat(trip.paid_amount).toFixed(2) }}</span>
               </div>
-            </div>
-
-            <!-- Plant Details -->
-            <div v-if="trip.plant" class="border rounded-lg p-4">
-              <h3 class="font-semibold text-gray-900 mb-2">Plant Details</h3>
-              <div class="space-y-2 text-sm">
-                <p><span class="font-medium">Name:</span> {{ trip.plant.name }}</p>
-                <p><span class="font-medium">Location:</span> {{ trip.plant.location }}</p>
-                <p><span class="font-medium">Contact:</span> {{ trip.plant.contact_person }}</p>
-                <p><span class="font-medium">Phone:</span> {{ trip.plant.phone }}</p>
+              <div class="flex justify-between items-center p-3 bg-gray-100 rounded border-t-2">
+                <span class="text-gray-700 font-medium">Your Income:</span>
+                <span :class="incomeClass" class="text-xl font-bold">
+                  ${{ incomeAmount.toFixed(2) }}
+                </span>
               </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Financial Summary -->
-      <div class="lg:col-span-1">
-        <div class="bg-white rounded-lg shadow-md p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Financial Summary</h2>
-
-          <div class="space-y-4">
-            <div class="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-              <span class="text-sm font-medium text-gray-600">Trip Amount</span>
-              <span class="text-lg font-semibold text-blue-600">${{ trip.trip_amount }}</span>
-            </div>
-
-            <div class="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-              <span class="text-sm font-medium text-gray-600">Paid Amount</span>
-              <span class="text-lg font-semibold text-green-600">${{ trip.paid_amount }}</span>
-            </div>
-
-            <div class="flex justify-between items-center p-3 rounded-lg" :class="balanceClass">
-              <span class="text-sm font-medium">Balance Amount</span>
-              <span class="text-lg font-semibold">
-                ${{ (trip.trip_amount - trip.paid_amount).toFixed(2) }}
-              </span>
-            </div>
-
-            <div class="pt-3 border-t">
-              <div class="flex justify-center">
-                <span :class="statusClass" class="px-3 py-1 text-sm font-semibold rounded-full">
-                  {{ balanceStatus }}
+              <div class="mt-4">
+                <span :class="incomeBadgeClass" class="px-3 py-1 text-sm font-semibold rounded-full block text-center">
+                  {{ incomeStatus }}
                 </span>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- Status Information -->
-        <div class="mt-6 bg-white rounded-lg shadow-md p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Status Information</h2>
-
-          <div class="space-y-3">
-            <div class="flex justify-between items-center">
-              <span class="text-sm font-medium text-gray-600">Payment Status</span>
-              <span :class="statusClass" class="px-2 py-1 text-xs font-semibold rounded-full">
-                {{ balanceStatus }}
-              </span>
-            </div>
-
-            <div class="flex justify-between items-center">
-              <span class="text-sm font-medium text-gray-600">Completion</span>
-              <span class="text-sm text-gray-900">{{ completionPercentage }}%</span>
-            </div>
-
-            <div class="w-full bg-gray-200 rounded-full h-2">
-              <div
-                class="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                :style="{ width: completionPercentage + '%' }"
-              ></div>
+          <!-- Trip Timeline -->
+          <div class="bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Trip Timeline</h3>
+            <div class="space-y-4">
+              <div class="flex items-start space-x-3">
+                <div class="w-3 h-3 bg-green-500 rounded-full mt-1"></div>
+                <div>
+                  <p class="text-sm font-medium text-gray-900">Trip Created</p>
+                  <p class="text-xs text-gray-500">{{ formatDateTime(trip.created_at) }}</p>
+                </div>
+              </div>
+              <div v-if="trip.updated_at !== trip.created_at" class="flex items-start space-x-3">
+                <div class="w-3 h-3 bg-blue-500 rounded-full mt-1"></div>
+                <div>
+                  <p class="text-sm font-medium text-gray-900">Last Updated</p>
+                  <p class="text-xs text-gray-500">{{ formatDateTime(trip.updated_at) }}</p>
+                </div>
+              </div>
+              <div class="flex items-start space-x-3">
+                <div :class="deliveryStatusDotClass" class="w-3 h-3 rounded-full mt-1"></div>
+                <div>
+                  <p class="text-sm font-medium text-gray-900">Delivery Date</p>
+                  <p class="text-xs text-gray-500">{{ formatDate(trip.delivery_date) }} {{ trip.delivery_time || '' }}</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- Quick Actions -->
-        <div class="mt-6 bg-white rounded-lg shadow-md p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
-
-          <div class="space-y-3">
-            <Link :href="route('trips.edit', trip.id)" class="block w-full text-center bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-              Edit Trip
-            </Link>
-
-            <button @click="printTrip" class="block w-full text-center bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
-              Print Trip
-            </button>
-
-            <button @click="duplicateTrip" class="block w-full text-center bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">
-              Duplicate Trip
-            </button>
-
-            <button @click="deleteTrip" class="block w-full text-center bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
-              Delete Trip
-            </button>
+      <!-- Delete Confirmation Modal -->
+      <div v-if="showDeleteModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+          <div class="mt-3 text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+              <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+              </svg>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mt-2">Delete Trip</h3>
+            <div class="mt-2 px-7 py-3">
+              <p class="text-sm text-gray-500">
+                Are you sure you want to delete this trip? This action cannot be undone.
+              </p>
+            </div>
+            <div class="items-center px-4 py-3">
+              <button
+                @click="confirmDelete"
+                :disabled="deleteForm.processing"
+                class="px-4 py-2 bg-red-500 text-white text-base font-medium rounded-md w-24 mr-2 hover:bg-red-600 disabled:opacity-50"
+              >
+                {{ deleteForm.processing ? 'Deleting...' : 'Delete' }}
+              </button>
+              <button
+                @click="showDeleteModal = false"
+                class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md w-24 hover:bg-gray-600"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
+  </AuthenticatedLayout>
 </template>
 
-<script>
-import { Link, Head } from '@inertiajs/vue3'
-import { computed } from 'vue'
+<script setup>
+import { Head, Link, useForm } from '@inertiajs/vue3'
+import { computed, ref } from 'vue'
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 
-export default {
-  components: {
-    Link,
-    Head
-  },
-  props: {
-    trip: {
-      type: Object,
-      required: true
-    }
-  },
-  setup(props) {
-    const balance = computed(() => props.trip.trip_amount - props.trip.paid_amount)
-
-    const balanceClass = computed(() => {
-      return balance.value > 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
-    })
-
-    const balanceStatus = computed(() => {
-      return balance.value > 0 ? 'Pending Payment' : 'Fully Paid'
-    })
-
-    const statusClass = computed(() => {
-      return balance.value > 0
-        ? 'bg-red-100 text-red-800'
-        : 'bg-green-100 text-green-800'
-    })
-
-    const completionPercentage = computed(() => {
-      if (props.trip.trip_amount === 0) return 0
-      return Math.round((props.trip.paid_amount / props.trip.trip_amount) * 100)
-    })
-
-    const formatDate = (date) => {
-      return new Date(date).toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      })
-    }
-
-    const formatTime = (time) => {
-      if (!time) return 'Not specified'
-      return new Date(`1970-01-01T${time}`).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-    }
-
-    const formatDateTime = (dateTime) => {
-      return new Date(dateTime).toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-    }
-
-    const deleteTrip = () => {
-      if (confirm('Are you sure you want to delete this trip? This action cannot be undone.')) {
-        window.$inertia.delete(route('trips.destroy', props.trip.id))
-      }
-    }
-
-    const printTrip = () => {
-      window.print()
-    }
-
-    const duplicateTrip = () => {
-      if (confirm('Do you want to create a new trip with the same details?')) {
-        window.$inertia.get(route('trips.create'), {
-          duplicate: props.trip.id
-        })
-      }
-    }
-
-    return {
-      balance,
-      balanceClass,
-      balanceStatus,
-      statusClass,
-      completionPercentage,
-      formatDate,
-      formatTime,
-      formatDateTime,
-      deleteTrip,
-      printTrip,
-      duplicateTrip
-    }
+const props = defineProps({
+  trip: {
+    type: Object,
+    required: true
   }
+})
+
+const showDeleteModal = ref(false)
+
+const deleteForm = useForm({})
+
+const incomeAmount = computed(() => {
+  return parseFloat(props.trip.trip_amount) - parseFloat(props.trip.paid_amount)
+})
+
+const incomeClass = computed(() => {
+  return incomeAmount.value > 0 ? 'text-green-600' : 'text-red-600'
+})
+
+const incomeStatus = computed(() => {
+  return incomeAmount.value > 0 ? 'Profitable Trip' : 'Loss-Making Trip'
+})
+
+const incomeBadgeClass = computed(() => {
+  return incomeAmount.value > 0
+    ? 'bg-green-100 text-green-800'
+    : 'bg-red-100 text-red-800'
+})
+
+const deliveryStatus = computed(() => {
+  const deliveryDate = new Date(props.trip.delivery_date)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  deliveryDate.setHours(0, 0, 0, 0)
+
+  if (deliveryDate < today) {
+    return 'Completed'
+  } else if (deliveryDate.getTime() === today.getTime()) {
+    return 'Today'
+  } else {
+    return 'Scheduled'
+  }
+})
+
+const deliveryStatusDotClass = computed(() => {
+  const status = deliveryStatus.value
+  switch (status) {
+    case 'Completed':
+      return 'bg-green-500'
+    case 'Today':
+      return 'bg-orange-500'
+    case 'Scheduled':
+      return 'bg-blue-500'
+    default:
+      return 'bg-gray-500'
+  }
+})
+
+const isDriverAssignedToTipper = computed(() => {
+  return props.trip.driver?.tipper_number === props.trip.tipper_number
+})
+
+const formatDate = (dateString) => {
+  return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+}
+
+const formatDateTime = (dateString) => {
+  return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+const deleteTrip = () => {
+  showDeleteModal.value = true
+}
+
+const confirmDelete = () => {
+  deleteForm.delete(route('trips.destroy', props.trip.id), {
+    onSuccess: () => {
+      showDeleteModal.value = false
+    }
+  })
 }
 </script>
-
-<style scoped>
-@media print {
-  .no-print {
-    display: none !important;
-  }
-}
-</style>

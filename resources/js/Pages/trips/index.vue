@@ -67,9 +67,9 @@
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plant</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Delivery Date</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trip Amount</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paid Amount</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver Salary</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Your Income</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
           </tr>
@@ -83,7 +83,7 @@
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ formatDate(trip.delivery_date) }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Rs. {{ trip.trip_amount }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Rs. {{ trip.paid_amount }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Rs. {{ getBalance(trip) }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold" :class="getIncomeClass(trip)">Rs. {{ getIncome(trip) }}</td>
             <td class="px-6 py-4 whitespace-nowrap">
               <span :class="getStatusClass(trip)" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full">
                 {{ getStatus(trip) }}
@@ -146,7 +146,7 @@ import { computed, ref } from 'vue'
 
 export default {
   components: {
-    AuthenticatedLayout,  // Add this line
+    AuthenticatedLayout,
     Link,
     Head
   },
@@ -188,9 +188,9 @@ export default {
 
       if (statusFilter.value) {
         filtered = filtered.filter(trip => {
-          const balance = parseFloat(trip.trip_amount) - parseFloat(trip.paid_amount)
-          if (statusFilter.value === 'pending') return balance > 0
-          if (statusFilter.value === 'completed') return balance === 0
+          const income = parseFloat(trip.trip_amount) - parseFloat(trip.paid_amount)
+          if (statusFilter.value === 'pending') return income > 0
+          if (statusFilter.value === 'completed') return income === 0
           return true
         })
       }
@@ -206,9 +206,16 @@ export default {
       return trip.plant?.name || 'N/A'
     }
 
-    const getBalance = (trip) => {
-      const balance = parseFloat(trip.trip_amount) - parseFloat(trip.paid_amount)
-      return balance.toFixed(2)
+    const getIncome = (trip) => {
+      const income = parseFloat(trip.trip_amount) - parseFloat(trip.paid_amount)
+      return income.toFixed(2)
+    }
+
+    const getIncomeClass = (trip) => {
+      const income = parseFloat(trip.trip_amount) - parseFloat(trip.paid_amount)
+      if (income > 0) return 'text-green-600'
+      if (income < 0) return 'text-red-600'
+      return 'text-gray-900'
     }
 
     const formatDate = (date) => {
@@ -217,15 +224,17 @@ export default {
     }
 
     const getStatus = (trip) => {
-      const balance = parseFloat(trip.trip_amount) - parseFloat(trip.paid_amount)
-      return balance > 0 ? 'Pending' : 'Completed'
+      const income = parseFloat(trip.trip_amount) - parseFloat(trip.paid_amount)
+      if (income > 0) return 'Profitable'
+      if (income < 0) return 'Loss'
+      return 'Break Even'
     }
 
     const getStatusClass = (trip) => {
-      const balance = parseFloat(trip.trip_amount) - parseFloat(trip.paid_amount)
-      return balance > 0
-        ? 'bg-yellow-100 text-yellow-800'
-        : 'bg-green-100 text-green-800'
+      const income = parseFloat(trip.trip_amount) - parseFloat(trip.paid_amount)
+      if (income > 0) return 'bg-green-100 text-green-800'
+      if (income < 0) return 'bg-red-100 text-red-800'
+      return 'bg-gray-100 text-gray-800'
     }
 
     const deleteTrip = (id) => {
@@ -242,7 +251,8 @@ export default {
       filteredTrips,
       getDriverName,
       getPlantName,
-      getBalance,
+      getIncome,
+      getIncomeClass,
       formatDate,
       getStatus,
       getStatusClass,
