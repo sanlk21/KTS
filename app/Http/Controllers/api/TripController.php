@@ -204,7 +204,7 @@ class TripController extends Controller
         }
     }
 
-    public function reports(Request $request)
+     public function reports(Request $request)
     {
         $period = $request->query('period', 'monthly');
         $plantId = $request->query('plant_id');
@@ -215,13 +215,14 @@ class TripController extends Controller
         $dateRange = $this->getDateRange($period, $startDate, $endDate);
 
         // Create base query - FIXED: Don't apply plant filter here yet
-        $baseQuery = Trip::with(['driver', 'plant'])
+        $baseQuery = Trip::with(['driver', 'plant', 'tipper'])
             ->whereBetween('delivery_date', [$dateRange['start'], $dateRange['end']]);
 
         // Create separate queries for different statistics
         $summaryQuery = clone $baseQuery;
         $driverQuery = clone $baseQuery;
         $plantQuery = clone $baseQuery;
+        $tipperQuery = clone $baseQuery; // Added tipper query
         $trendQuery = clone $baseQuery;
         $dailyQuery = clone $baseQuery;
 
@@ -230,6 +231,7 @@ class TripController extends Controller
             $summaryQuery->where('plant_id', $plantId);
             $driverQuery->where('plant_id', $plantId);
             $plantQuery->where('plant_id', $plantId);
+            $tipperQuery->where('plant_id', $plantId); // Apply filter to tipper query too
             $trendQuery->where('plant_id', $plantId);
             $dailyQuery->where('plant_id', $plantId);
         }
@@ -238,14 +240,16 @@ class TripController extends Controller
         $summary = $this->getSummaryStats($summaryQuery);
         $driverStats = $this->getDriverStats($driverQuery);
         $plantStats = $this->getPlantStats($plantQuery);
+        $tipperStats = $this->getTipperStats($tipperQuery); // Added tipper stats
         $revenueTrend = $this->getRevenueTrend($trendQuery, $period);
         $dailyIncome = $this->getDailyIncomeBreakdown($dailyQuery, $period);
-        $batchStats = $this->getBatchStats($baseQuery); // New batch statistics
+        $batchStats = $this->getBatchStats($baseQuery);
 
         $reportData = [
             'summary' => $summary,
             'driver_stats' => $driverStats,
             'plant_stats' => $plantStats,
+            'tipper_stats' => $tipperStats, // Added tipper stats to response
             'revenue_trend' => $revenueTrend,
             'daily_income' => $dailyIncome,
             'batch_stats' => $batchStats,
@@ -266,6 +270,54 @@ class TripController extends Controller
             'plants' => $plants
         ]);
     }
+
+    // New method for tipper statistics
+   private function getTipperStats($query)
+{
+    return $query->select([
+        'tippers.tipper_number as id', // Use tipper_number as id
+        'tippers.tipper_number',
+        'tippers.size as capacity', // Use 'size' instead of 'capacity'
+        DB::raw('COUNT(*) as total_trips'),
+        DB::raw('COUNT(DISTINCT batch_id) as total_batches'),
+        DB::raw('SUM(trip_amount) as total_revenue'),
+        DB::raw('SUM(paid_amount) as total_expenses'),
+        DB::raw('SUM(trip_amount - paid_amount) as total_profit'),
+        DB::raw('AVG(trip_amount) as avg_revenue_per_trip'),
+        DB::raw('COUNT(DISTINCT driver_id) as unique_drivers'),
+        DB::raw('COUNT(DISTINCT plant_id) as unique_plants'),
+        DB::raw('DATEDIFF(MAX(delivery_date), MIN(delivery_date)) + 1 as active_days')
+    ])
+    ->join('tippers', 'trips.tipper_number', '=', 'tippers.tipper_number') // Simplified join
+    ->groupBy('tippers.tipper_number', 'tippers.size')
+    ->orderByDesc('total_trips')
+    ->get()
+    ->map(function ($tipper) {
+        $utilizationRate = $tipper->active_days > 0 ?
+            round($tipper->total_trips / $tipper->active_days, 2) : 0;
+
+        return [
+            'id' => $tipper->id, // This will be tipper_number
+            'tipper_number' => $tipper->tipper_number,
+            'capacity' => $tipper->capacity ?? 'N/A',
+            'total_trips' => (int) $tipper->total_trips,
+            'total_batches' => (int) $tipper->total_batches,
+            'total_revenue' => (float) $tipper->total_revenue,
+            'total_expenses' => (float) $tipper->total_expenses,
+            'total_profit' => (float) $tipper->total_profit,
+            'avg_revenue_per_trip' => (float) $tipper->avg_revenue_per_trip,
+            'unique_drivers' => (int) $tipper->unique_drivers,
+            'unique_plants' => (int) $tipper->unique_plants,
+            'active_days' => (int) $tipper->active_days,
+            'utilization_rate' => $utilizationRate,
+            'profit_margin' => $tipper->total_revenue > 0 ?
+                round(($tipper->total_profit / $tipper->total_revenue) * 100, 2) : 0,
+            'efficiency_score' => $tipper->total_trips > 0 ?
+                round($tipper->total_profit / $tipper->total_trips, 2) : 0
+        ];
+    });
+}
+
 
     // New method for batch statistics
     private function getBatchStats($query)
@@ -540,6 +592,7 @@ class TripController extends Controller
             'summary' => $data['summary'],
             'driver_stats' => $data['driver_stats'],
             'plant_stats' => $data['plant_stats'],
+            'tipper_stats' => $data['tipper_stats'], // Added tipper stats to PDF
             'revenue_trend' => $data['revenue_trend'],
             'daily_income' => $data['daily_income'],
             'batch_stats' => $data['batch_stats'] ?? [],
@@ -580,5 +633,6 @@ class TripController extends Controller
     {
         return 'Rs. ' . number_format($value, 2);
     }
-
 }
+
+

@@ -24,7 +24,7 @@
             <input
               v-model="filters.search"
               type="text"
-              placeholder="Search driver, plant..."
+              placeholder="Search driver, plant, tipper..."
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -236,6 +236,83 @@
         </div>
       </div>
 
+      <!-- Tipper Performance Table -->
+      <div class="bg-white rounded-lg shadow-md mb-8">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-semibold text-gray-900">
+            Tipper Performance
+            <span v-if="selectedPlantName" class="text-sm text-gray-500">({{ selectedPlantName }})</span>
+            <span v-else class="text-sm text-gray-500">(All Plants)</span>
+          </h3>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipper</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Trips</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Revenue</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Utilization</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Efficiency</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Profit Margin</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <tr v-if="filteredTipperStats.length === 0">
+                <td colspan="6" class="px-6 py-4 text-center text-gray-500">
+                  {{ loading ? 'Loading tippers...' : 'No tippers found for the selected criteria' }}
+                </td>
+              </tr>
+              <tr v-for="tipper in filteredTipperStats" :key="tipper.id" class="hover:bg-gray-50">
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="flex items-center">
+                    <div class="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center text-white font-semibold">
+                      {{ tipper.tipper_number.charAt(0) }}
+                    </div>
+                    <div class="ml-4">
+                      <div class="text-sm font-medium text-gray-900">{{ tipper.tipper_number }}</div>
+                      <div class="text-sm text-gray-500">
+                        Capacity: {{ tipper.capacity !== 'N/A' ? tipper.capacity : 'Unknown' }}
+                      </div>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                    {{ tipper.total_trips }}
+                  </span>
+                  <div class="text-xs text-gray-500 mt-1">{{ tipper.total_batches }} batches</div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <div class="font-medium">Rs. {{ formatCurrency(tipper.total_revenue) }}</div>
+                  <div class="text-xs text-gray-500">Profit: Rs. {{ formatCurrency(tipper.total_profit) }}</div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <div class="font-medium">{{ tipper.utilization_rate }} trips/day</div>
+                  <div class="text-xs text-gray-500">{{ tipper.active_days }} active days</div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <div class="font-medium">Rs. {{ formatCurrency(tipper.efficiency_score) }}/trip</div>
+                  <div class="text-xs text-gray-500">{{ tipper.unique_drivers }} drivers, {{ tipper.unique_plants }} plants</div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="flex items-center">
+                    <div class="w-16 bg-gray-200 rounded-full h-2 mr-2">
+                      <div
+                        class="h-2 rounded-full"
+                        :class="tipper.profit_margin >= 20 ? 'bg-green-600' : tipper.profit_margin >= 10 ? 'bg-yellow-600' : 'bg-red-600'"
+                        :style="{ width: Math.min(100, Math.abs(tipper.profit_margin)) + '%' }"
+                      ></div>
+                    </div>
+                    <span class="text-sm text-gray-600">{{ tipper.profit_margin }}%</span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Plant Performance Table -->
       <div class="bg-white rounded-lg shadow-md mb-8">
         <div class="px-6 py-4 border-b border-gray-200">
@@ -385,6 +462,16 @@ const filteredDriverStats = computed(() => {
   return drivers.filter(driver =>
     driver.name.toLowerCase().includes(filters.value.search.toLowerCase()) ||
     (driver.phone && driver.phone !== 'N/A' && driver.phone.includes(filters.value.search))
+  )
+})
+
+const filteredTipperStats = computed(() => {
+  const tippers = reportData.value.tipper_stats || []
+  if (!filters.value.search) return tippers
+
+  return tippers.filter(tipper =>
+    tipper.tipper_number.toLowerCase().includes(filters.value.search.toLowerCase()) ||
+    (tipper.capacity && tipper.capacity !== 'N/A' && tipper.capacity.toLowerCase().includes(filters.value.search.toLowerCase()))
   )
 })
 
