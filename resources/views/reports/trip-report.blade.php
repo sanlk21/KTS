@@ -130,6 +130,11 @@
             color: white;
         }
 
+        .badge-warning {
+            background-color: #ffc107;
+            color: #212529;
+        }
+
         .no-break {
             page-break-inside: avoid;
         }
@@ -260,6 +265,49 @@
                 @empty
                 <tr>
                     <td colspan="6" class="text-center">No plant data available</td>
+                </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Tipper Performance Section -->
+    <div class="section no-break">
+        <h2 class="section-title">Tipper Performance</h2>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Tipper Number</th>
+                    <th>Size</th>
+                    <th class="text-center">Total Trips</th>
+                    <th class="text-center">Batches</th>
+                    <th class="text-right">Revenue</th>
+                    <th class="text-right">Expenses</th>
+                    <th class="text-right">Profit</th>
+                    <th class="text-center">Profit Margin</th>
+                    <th class="text-center">Utilization Rate</th>
+                    <th class="text-center">Drivers Used</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($tipper_stats as $tipper)
+                <tr>
+                    <td>{{ $tipper['tipper_number'] }}</td>
+                    <td>{{ $tipper['capacity'] }}</td>
+                    <td class="text-center">
+                        <span class="badge badge-warning">{{ $tipper['total_trips'] }}</span>
+                    </td>
+                    <td class="text-center">{{ $tipper['total_batches'] }}</td>
+                    <td class="text-right">Rs. {{ number_format($tipper['total_revenue'], 2) }}</td>
+                    <td class="text-right">Rs. {{ number_format($tipper['total_expenses'], 2) }}</td>
+                    <td class="text-right">Rs. {{ number_format($tipper['total_profit'], 2) }}</td>
+                    <td class="text-center">{{ number_format($tipper['profit_margin'], 1) }}%</td>
+                    <td class="text-center">{{ $tipper['utilization_rate'] }} trips/day</td>
+                    <td class="text-center">{{ $tipper['unique_drivers'] }}</td>
+                </tr>
+                @empty
+                <tr>
+                    <td colspan="10" class="text-center">No tipper data available</td>
                 </tr>
                 @endforelse
             </tbody>

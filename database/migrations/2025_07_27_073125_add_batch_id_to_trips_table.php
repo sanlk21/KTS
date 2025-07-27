@@ -9,16 +9,18 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('trips', function (Blueprint $table) {
-            $table->string('driver_name')->after('driver_id');
-            $table->string('plant_name')->after('plant_id');
-            $table->time('delivery_time')->after('delivery_date');
+            $table->string('batch_id')->nullable()->after('id');
+
+            // If you want to add an index for better query performance
+            $table->index('batch_id');
         });
     }
 
     public function down(): void
     {
         Schema::table('trips', function (Blueprint $table) {
-            $table->dropColumn(['driver_name', 'plant_name', 'delivery_time']);
+            $table->dropIndex(['batch_id']);
+            $table->dropColumn('batch_id');
         });
     }
 };

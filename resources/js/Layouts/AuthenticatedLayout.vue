@@ -63,6 +63,12 @@ const showingNavigationDropdown = ref(false);
                                 >
                                     Trips
                                 </NavLink>
+                                <NavLink
+                                    :href="route('plants.index')"
+                                    :active="route().current('plants.index')"
+                                >
+                                    Salary
+                                </NavLink>
                             </div>
                         </div>
 

@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\TipperController;
 use App\Http\Controllers\DriverController;
 use App\Http\Controllers\PlantController;
 use App\Http\Controllers\Api\TripController;
+use App\Http\Controllers\Api\DriverSalaryController;
 use Inertia\Inertia;
 
 Route::get('/', function () {
@@ -72,6 +73,19 @@ Route::middleware('auth')->group(function () {
         Route::put('/{id}', [TripController::class, 'update'])->name('trips.update');
         Route::delete('/{id}', [TripController::class, 'destroy'])->name('trips.destroy');
     });
+    Route::prefix('driver-salaries')->name('driver-salaries.')->group(function () {
+    Route::get('/', [DriverSalaryController::class, 'index'])->name('index');
+    Route::get('/create', [DriverSalaryController::class, 'create'])->name('create');
+    Route::post('/', [DriverSalaryController::class, 'store'])->name('store');
+    Route::get('/{id}', [DriverSalaryController::class, 'show'])->name('show');
+    Route::get('/{id}/edit', [DriverSalaryController::class, 'edit'])->name('edit');
+    Route::put('/{id}', [DriverSalaryController::class, 'update'])->name('update');
+    Route::delete('/{id}', [DriverSalaryController::class, 'destroy'])->name('destroy');
+
+    // Additional API routes for salary management
+    Route::post('/sync-records', [DriverSalaryController::class, 'syncSalaryRecords'])->name('sync-records');
+    Route::post('/make-payment', [DriverSalaryController::class, 'makePayment'])->name('make-payment');
+});
 
     // REMOVED: Duplicate resource route definition
 });
