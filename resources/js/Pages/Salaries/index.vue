@@ -6,19 +6,56 @@
         <p class="text-gray-600 mt-1">Manage driver salary configurations and records</p>
       </div>
       <div class="flex space-x-3">
-        <button
-          @click="syncSalaryRecords"
-          :disabled="syncing"
-          class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
-        >
-          <svg v-if="syncing" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <span>{{ syncing ? 'Syncing...' : 'Sync Records' }}</span>
-        </button>
+        <!-- Sync Dropdown -->
+        <div class="relative">
+          <button
+            @click="showSyncOptions = !showSyncOptions"
+            :disabled="syncing"
+            class="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
+          >
+            <svg v-if="syncing" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>{{ syncing ? 'Syncing...' : 'Sync Records' }}</span>
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </button>
+
+          <!-- Sync Options Dropdown -->
+          <div v-if="showSyncOptions" class="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+            <div class="py-1">
+              <button
+                @click="syncSalaryRecords('today')"
+                class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Sync Today's Records
+              </button>
+              <button
+                @click="syncSalaryRecords('week')"
+                class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Sync Last 7 Days
+              </button>
+              <button
+                @click="syncSalaryRecords('month')"
+                class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Sync Last 30 Days
+              </button>
+              <button
+                @click="openCustomSyncModal"
+                class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Custom Date Range
+              </button>
+            </div>
+          </div>
+        </div>
+
         <Link
-          :href="route('driver-salaries.create')"
+          :href="createRoute"
           class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
         >
           <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -40,7 +77,7 @@
           </div>
           <div class="ml-4">
             <p class="text-sm font-medium text-gray-500">Total Earned</p>
-            <p class="text-2xl font-semibold text-gray-900">Rs. {{ formatNumber(summaryStats.total_earned) }}</p>
+            <p class="text-2xl font-semibold text-gray-900">Rs. {{ formatNumber(summaryStats?.total_earned || 0) }}</p>
           </div>
         </div>
       </div>
@@ -54,7 +91,7 @@
           </div>
           <div class="ml-4">
             <p class="text-sm font-medium text-gray-500">Total Paid</p>
-            <p class="text-2xl font-semibold text-gray-900">Rs. {{ formatNumber(summaryStats.total_paid) }}</p>
+            <p class="text-2xl font-semibold text-gray-900">Rs. {{ formatNumber(summaryStats?.total_paid || 0) }}</p>
           </div>
         </div>
       </div>
@@ -68,9 +105,9 @@
           </div>
           <div class="ml-4">
             <p class="text-sm font-medium text-gray-500">Outstanding Balance</p>
-            <p class="text-2xl font-semibold" :class="summaryStats.total_balance >= 0 ? 'text-red-600' : 'text-green-600'">
-              Rs. {{ formatNumber(Math.abs(summaryStats.total_balance)) }}
-              <span class="text-sm">{{ summaryStats.total_balance >= 0 ? '(Owed)' : '(Owing)' }}</span>
+            <p class="text-2xl font-semibold" :class="(summaryStats?.total_balance || 0) >= 0 ? 'text-red-600' : 'text-green-600'">
+              Rs. {{ formatNumber(Math.abs(summaryStats?.total_balance || 0)) }}
+              <span class="text-sm">{{ (summaryStats?.total_balance || 0) >= 0 ? '(Owed)' : '(Owing)' }}</span>
             </p>
           </div>
         </div>
@@ -85,7 +122,7 @@
           </div>
           <div class="ml-4">
             <p class="text-sm font-medium text-gray-500">Total Trips</p>
-            <p class="text-2xl font-semibold text-gray-900">{{ summaryStats.total_trips.toLocaleString() }}</p>
+            <p class="text-2xl font-semibold text-gray-900">{{ (summaryStats?.total_trips || 0).toLocaleString() }}</p>
           </div>
         </div>
       </div>
@@ -164,10 +201,10 @@
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
-            <tr v-for="record in salaryRecords.data" :key="record.id" class="hover:bg-gray-50">
+            <tr v-for="record in (salaryRecords?.data || [])" :key="record.id" class="hover:bg-gray-50">
               <td class="px-6 py-4 whitespace-nowrap">
                 <div>
-                  <div class="text-sm font-medium text-gray-900">{{ record.driver.name }}</div>
+                  <div class="text-sm font-medium text-gray-900">{{ record.driver?.name || 'N/A' }}</div>
                   <div class="text-sm text-gray-500">ID: {{ record.driver_id }}</div>
                 </div>
               </td>
@@ -175,7 +212,7 @@
                 {{ formatDate(record.record_date) }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {{ record.total_trips }}
+                {{ record.total_trips || 0 }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                 Rs. {{ formatNumber(record.earned_amount) }}
@@ -186,18 +223,18 @@
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                 Rs. {{ formatNumber(record.paid_amount) }}
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm" :class="record.balance_amount >= 0 ? 'text-red-600' : 'text-green-600'">
-                Rs. {{ formatNumber(Math.abs(record.balance_amount)) }}
-                <span class="text-xs">{{ record.balance_amount >= 0 ? '(Owed)' : '(Owing)' }}</span>
+              <td class="px-6 py-4 whitespace-nowrap text-sm" :class="(record.balance_amount || 0) >= 0 ? 'text-red-600' : 'text-green-600'">
+                Rs. {{ formatNumber(Math.abs(record.balance_amount || 0)) }}
+                <span class="text-xs">{{ (record.balance_amount || 0) >= 0 ? '(Owed)' : '(Owing)' }}</span>
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
                 <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full" :class="getStatusBadgeClass(record.payment_status)">
-                  {{ record.payment_status }}
+                  {{ record.payment_status || 'pending' }}
                 </span>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                 <Link
-                  :href="route('driver-salaries.show', record.driver_id)"
+                  :href="getShowRoute(record.driver_id)"
                   class="text-indigo-600 hover:text-indigo-900"
                 >
                   View
@@ -215,18 +252,18 @@
       </div>
 
       <!-- Pagination -->
-      <div class="bg-white px-4 py-3 border-t border-gray-200 sm:px-6" v-if="salaryRecords.links">
+      <div class="bg-white px-4 py-3 border-t border-gray-200 sm:px-6" v-if="salaryRecords?.links">
         <div class="flex items-center justify-between">
           <div class="flex-1 flex justify-between sm:hidden">
             <Link
-              v-if="salaryRecords.prev_page_url"
+              v-if="salaryRecords?.prev_page_url"
               :href="salaryRecords.prev_page_url"
               class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
             >
               Previous
             </Link>
             <Link
-              v-if="salaryRecords.next_page_url"
+              v-if="salaryRecords?.next_page_url"
               :href="salaryRecords.next_page_url"
               class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
             >
@@ -236,15 +273,15 @@
           <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
             <div>
               <p class="text-sm text-gray-700">
-                Showing {{ salaryRecords.from }} to {{ salaryRecords.to }} of {{ salaryRecords.total }} results
+                Showing {{ salaryRecords?.from || 0 }} to {{ salaryRecords?.to || 0 }} of {{ salaryRecords?.total || 0 }} results
               </p>
             </div>
             <div>
               <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
                 <Link
-                  v-for="link in salaryRecords.links"
+                  v-for="link in (salaryRecords?.links || [])"
                   :key="link.label"
-                  :href="link.url"
+                  :href="link.url || '#'"
                   :class="[
                     'relative inline-flex items-center px-4 py-2 border text-sm font-medium',
                     link.active
@@ -350,22 +387,98 @@
         </div>
       </div>
     </div>
+
+    <!-- Custom Sync Modal -->
+    <div v-if="showCustomSyncModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+          <h3 class="text-lg font-medium text-gray-900 mb-4">Custom Sync Range</h3>
+          <form @submit.prevent="submitCustomSync">
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+              <input
+                type="date"
+                v-model="customSyncForm.start_date"
+                required
+                class="w-full border-gray-300 rounded-lg"
+              >
+            </div>
+
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+              <input
+                type="date"
+                v-model="customSyncForm.end_date"
+                required
+                class="w-full border-gray-300 rounded-lg"
+              >
+            </div>
+
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-2">Driver (Optional)</label>
+              <select v-model="customSyncForm.driver_id" class="w-full border-gray-300 rounded-lg">
+                <option value="">All Drivers</option>
+                <option v-for="driver in drivers" :key="driver.id" :value="driver.id">
+                  {{ driver.name }}
+                </option>
+              </select>
+            </div>
+
+            <div class="flex justify-end space-x-3">
+              <button
+                type="button"
+                @click="closeCustomSyncModal"
+                class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                :disabled="syncing"
+                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {{ syncing ? 'Syncing...' : 'Sync Records' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
 
 const props = defineProps({
-  salaryRecords: Object,
-  summaryStats: Object,
-  drivers: Array,
-  filters: Object
+  salaryRecords: {
+    type: Object,
+    default: () => ({ data: [], links: null })
+  },
+  summaryStats: {
+    type: Object,
+    default: () => ({
+      total_earned: 0,
+      total_paid: 0,
+      total_balance: 0,
+      total_trips: 0
+    })
+  },
+  drivers: {
+    type: Array,
+    default: () => []
+  },
+  filters: {
+    type: Object,
+    default: () => ({})
+  }
 })
 
 const syncing = ref(false)
 const showPaymentModal = ref(false)
+const showCustomSyncModal = ref(false)
+const showSyncOptions = ref(false)
 const selectedRecord = ref(null)
 const processing = ref(false)
 
@@ -384,6 +497,44 @@ const paymentForm = ref({
   payment_type: 'salary',
   payment_method: 'cash',
   description: ''
+})
+
+const customSyncForm = ref({
+  start_date: '',
+  end_date: '',
+  driver_id: ''
+})
+
+// Close dropdowns when clicking outside
+const handleClickOutside = (event) => {
+  if (!event.target.closest('.relative')) {
+    showSyncOptions.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
+
+// Computed properties for routes (with fallback URLs)
+const createRoute = computed(() => {
+  try {
+    return window.route ? window.route('Salaries.create') : '/salaries/create'
+  } catch (error) {
+    return '/salaries/create'
+  }
+})
+
+const indexRoute = computed(() => {
+  try {
+    return window.route ? window.route('Salaries.index') : '/salaries'
+  } catch (error) {
+    return '/salaries'
+  }
 })
 
 const formatNumber = (value) => {
@@ -411,21 +562,138 @@ const getStatusBadgeClass = (status) => {
   return classes[status] || 'bg-gray-100 text-gray-800'
 }
 
-const applyFilters = () => {
-  router.get(route('driver-salaries.index'), filters.value, {
-    preserveState: true,
-    preserveScroll: true
-  })
+const getShowRoute = (driverId) => {
+  try {
+    return window.route ? window.route('Salaries.show', driverId) : `/salaries/${driverId}`
+  } catch (error) {
+    return `/salaries/${driverId}`
+  }
 }
 
-const syncSalaryRecords = async () => {
+const applyFilters = () => {
+  try {
+    if (window.route) {
+      router.get(window.route('Salaries.index'), filters.value, {
+        preserveState: true,
+        preserveScroll: true
+      })
+    } else {
+      // Fallback: construct URL manually
+      const url = new URL('/salaries', window.location.origin)
+      Object.keys(filters.value).forEach(key => {
+        if (filters.value[key]) {
+          url.searchParams.set(key, filters.value[key])
+        }
+      })
+      router.get(url.toString(), {}, {
+        preserveState: true,
+        preserveScroll: true
+      })
+    }
+  } catch (error) {
+    console.error('Error applying filters:', error)
+    // Simple fallback
+    window.location.href = '/salaries'
+  }
+}
+
+const syncSalaryRecords = async (period = 'today') => {
+  if (syncing.value) return
+
+  syncing.value = true
+  showSyncOptions.value = false
+
+  try {
+    const syncUrl = window.route ? window.route('Salaries.sync-records') : '/salaries/sync-records'
+
+    let params = {}
+
+    // Set parameters based on period
+    switch (period) {
+      case 'today':
+        params.date = new Date().toISOString().split('T')[0]
+        break
+      case 'week':
+        params.date_range = 7
+        break
+      case 'month':
+        params.date_range = 30
+        break
+    }
+
+    // Add current driver filter if applied
+    if (filters.value.driver_id) {
+      params.driver_id = filters.value.driver_id
+    }
+
+    router.post(syncUrl, params, {
+      onSuccess: (page) => {
+        // Refresh the page data to show updated records
+        router.get(window.location.href, {}, {
+          preserveState: false,
+          preserveScroll: true
+        })
+      },
+      onError: (errors) => {
+        console.error('Sync errors:', errors)
+      },
+      onFinish: () => {
+        syncing.value = false
+      }
+    })
+  } catch (error) {
+    console.error('Error syncing records:', error)
+    syncing.value = false
+  }
+}
+
+const openCustomSyncModal = () => {
+  showSyncOptions.value = false
+  customSyncForm.value = {
+    start_date: '',
+    end_date: '',
+    driver_id: filters.value.driver_id || ''
+  }
+  showCustomSyncModal.value = true
+}
+
+const closeCustomSyncModal = () => {
+  showCustomSyncModal.value = false
+  customSyncForm.value = {
+    start_date: '',
+    end_date: '',
+    driver_id: ''
+  }
+}
+
+const submitCustomSync = async () => {
+  if (syncing.value) return
+
   syncing.value = true
 
-  router.post(route('driver-salaries.sync-records'), {}, {
-    onFinish: () => {
-      syncing.value = false
-    }
-  })
+  try {
+    const syncUrl = window.route ? window.route('Salaries.sync-records') : '/salaries/sync-records'
+
+    router.post(syncUrl, customSyncForm.value, {
+      onSuccess: (page) => {
+        closeCustomSyncModal()
+        // Refresh the page data
+        router.get(window.location.href, {}, {
+          preserveState: false,
+          preserveScroll: true
+        })
+      },
+      onError: (errors) => {
+        console.error('Custom sync errors:', errors)
+      },
+      onFinish: () => {
+        syncing.value = false
+      }
+    })
+  } catch (error) {
+    console.error('Error with custom sync:', error)
+    syncing.value = false
+  }
 }
 
 const openPaymentModal = (record) => {
@@ -451,15 +719,32 @@ const closePaymentModal = () => {
 }
 
 const submitPayment = async () => {
+  if (processing.value) return
+
   processing.value = true
 
-  router.post(route('driver-salaries.make-payment'), paymentForm.value, {
-    onSuccess: () => {
-      closePaymentModal()
-    },
-    onFinish: () => {
-      processing.value = false
-    }
-  })
+  try {
+    const paymentUrl = window.route ? window.route('Salaries.make-payment') : '/salaries/make-payment'
+
+    router.post(paymentUrl, paymentForm.value, {
+      onSuccess: (page) => {
+        closePaymentModal()
+        // Refresh the page data to show updated balances
+        router.get(window.location.href, {}, {
+          preserveState: false,
+          preserveScroll: true
+        })
+      },
+      onError: (errors) => {
+        console.error('Payment submission errors:', errors)
+      },
+      onFinish: () => {
+        processing.value = false
+      }
+    })
+  } catch (error) {
+    console.error('Error submitting payment:', error)
+    processing.value = false
+  }
 }
 </script>

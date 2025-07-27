@@ -18,9 +18,11 @@ Route::get('/', function () {
         'phpVersion' => PHP_VERSION,
     ]);
 });
+
 Route::get('/trips/{id}/pdf', [TripController::class, 'exportTripPDF'])->name('trips.pdf');
 Route::get('/batches/{batchId}/pdf', [TripController::class, 'exportBatchPDF'])->name('batches.pdf');
 Route::get('/trips/reports/preview', [TripController::class, 'previewReportPDF'])->name('trips.reports.preview');
+
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
@@ -30,12 +32,10 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // Specific routes first
+    // Tipper routes - Specific routes first
     Route::get('/tippers/expiring', [TipperController::class, 'getExpiringLicenses'])->name('tippers.expiring');
     Route::get('/tippers/create', [TipperController::class, 'create'])->name('tippers.create');
     Route::get('/tippers', [TipperController::class, 'index'])->name('tippers.index');
-
-    // POST route for storing new tippers
     Route::post('/tippers', [TipperController::class, 'store'])->name('tippers.store');
 
     // Parameterized routes last
@@ -45,6 +45,7 @@ Route::middleware('auth')->group(function () {
     Route::patch('/tippers/{tipper_number}', [TipperController::class, 'update'])->name('tippers.patch');
     Route::delete('/tippers/{tipper_number}', [TipperController::class, 'destroy'])->name('tippers.destroy');
 
+    // Driver routes
     Route::get('/drivers', [DriverController::class, 'index'])->name('drivers.index');
     Route::get('/drivers/create', [DriverController::class, 'create'])->name('drivers.create');
     Route::post('/drivers', [DriverController::class, 'store'])->name('drivers.store');
@@ -62,18 +63,20 @@ Route::middleware('auth')->group(function () {
     Route::put('/plants/{id}', [PlantController::class, 'update'])->name('plants.update');
     Route::delete('/plants/{id}', [PlantController::class, 'destroy'])->name('plants.destroy');
 
-    // Trip CRUD routes - FIXED: Use only one approach
+    // Trip CRUD routes
     Route::prefix('trips')->group(function () {
         Route::get('/reports', [TripController::class, 'reports'])->name('trips.reports');
         Route::get('/', [TripController::class, 'index'])->name('trips.index');
         Route::get('/create', [TripController::class, 'create'])->name('trips.create');
         Route::post('/', [TripController::class, 'store'])->name('trips.store');
-        Route::get('/{id}', [TripController::class, 'show'])->name('trips.show'); // FIXED: lowercase 'show'
+        Route::get('/{id}', [TripController::class, 'show'])->name('trips.show');
         Route::get('/{id}/edit', [TripController::class, 'edit'])->name('trips.edit');
         Route::put('/{id}', [TripController::class, 'update'])->name('trips.update');
         Route::delete('/{id}', [TripController::class, 'destroy'])->name('trips.destroy');
     });
-    Route::prefix('driver-salaries')->name('driver-salaries.')->group(function () {
+
+    // Driver Salary routes
+   Route::prefix('salaries')->name('Salaries.')->group(function () {
     Route::get('/', [DriverSalaryController::class, 'index'])->name('index');
     Route::get('/create', [DriverSalaryController::class, 'create'])->name('create');
     Route::post('/', [DriverSalaryController::class, 'store'])->name('store');
@@ -82,12 +85,10 @@ Route::middleware('auth')->group(function () {
     Route::put('/{id}', [DriverSalaryController::class, 'update'])->name('update');
     Route::delete('/{id}', [DriverSalaryController::class, 'destroy'])->name('destroy');
 
-    // Additional API routes for salary management
+    // Important: Add these routes for sync and payment functionality
     Route::post('/sync-records', [DriverSalaryController::class, 'syncSalaryRecords'])->name('sync-records');
     Route::post('/make-payment', [DriverSalaryController::class, 'makePayment'])->name('make-payment');
 });
-
-    // REMOVED: Duplicate resource route definition
 });
 
 require __DIR__ . '/auth.php';

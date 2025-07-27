@@ -43,7 +43,7 @@ class DriverSalaryController extends Controller
         // Get drivers for filter
         $drivers = Driver::whereHas('driverSalary')->get();
 
-        return inertia('driver-salaries/index', [
+        return inertia('Salaries/index', [
             'salaryRecords' => $salaryRecords,
             'summaryStats' => $summaryStats,
             'drivers' => $drivers,
@@ -61,7 +61,7 @@ class DriverSalaryController extends Controller
     {
         $drivers = Driver::all();
 
-        return inertia('driver-salaries/create', [
+        return inertia('Salaries/create', [
             'drivers' => $drivers
         ]);
     }
@@ -96,7 +96,7 @@ class DriverSalaryController extends Controller
             'advance_amount' => $request->advance_amount ?? 0,
         ]);
 
-        return redirect()->route('driver-salaries.index')
+        return redirect()->route('Salaries.index')
             ->with('success', 'Driver salary configuration created successfully');
     }
 
@@ -120,7 +120,7 @@ class DriverSalaryController extends Controller
         // Calculate stats
         $stats = $this->getDriverStats($id);
 
-        return inertia('driver-salaries/show', [
+        return inertia('Salaries/show', [
             'driver' => $driver,
             'salaryRecords' => $salaryRecords,
             'recentPayments' => $recentPayments,
@@ -132,7 +132,7 @@ class DriverSalaryController extends Controller
     {
         $driverSalary = DriverSalary::with('driver')->findOrFail($id);
 
-        return inertia('driver-salaries/edit', [
+        return inertia('Salaries/edit', [
             'driverSalary' => $driverSalary
         ]);
     }
@@ -163,7 +163,7 @@ class DriverSalaryController extends Controller
             'is_active' => $request->is_active ?? true,
         ]);
 
-        return redirect()->route('driver-salaries.index')
+        return redirect()->route('Salaries.index')
             ->with('success', 'Driver salary configuration updated successfully');
     }
 
@@ -180,20 +180,38 @@ class DriverSalaryController extends Controller
 
         $driverSalary->delete();
 
-        return redirect()->route('driver-salaries.index')
+        return redirect()->route('Salaries.index')
             ->with('success', 'Driver salary configuration deleted successfully');
     }
 
-    // Sync salary records from trips
+    // Enhanced sync salary records from trips
     public function syncSalaryRecords(Request $request)
     {
         $date = $request->query('date', Carbon::today()->toDateString());
         $driverId = $request->query('driver_id');
+        $dateRange = $request->query('date_range', 7); // Default to last 7 days
 
         try {
             DB::beginTransaction();
 
-            $driversQuery = Driver::whereHas('driverSalary');
+            // If no specific date provided, sync for a date range
+            if (!$request->has('date')) {
+                $startDate = Carbon::today()->subDays($dateRange)->toDateString();
+                $endDate = Carbon::today()->toDateString();
+
+                $syncedCount = $this->syncSalaryRecordsForDateRange($startDate, $endDate, $driverId);
+
+                DB::commit();
+
+                return redirect()->back()->with('success',
+                    "Successfully synced salary records for {$syncedCount} driver-days from {$startDate} to {$endDate}"
+                );
+            }
+
+            // Sync for specific date
+            $driversQuery = Driver::whereHas('driverSalary', function($query) {
+                $query->where('is_active', true);
+            });
 
             if ($driverId) {
                 $driversQuery->where('id', $driverId);
@@ -210,12 +228,45 @@ class DriverSalaryController extends Controller
 
             DB::commit();
 
-            return redirect()->back()->with('success', "Synced salary records for {$syncedCount} drivers for date: {$date}");
+            return redirect()->back()->with('success',
+                "Successfully synced salary records for {$syncedCount} drivers for date: {$date}"
+            );
 
         } catch (\Exception $e) {
             DB::rollback();
-            return redirect()->back()->withErrors(['error' => 'Failed to sync salary records: ' . $e->getMessage()]);
+            return redirect()->back()->withErrors([
+                'error' => 'Failed to sync salary records: ' . $e->getMessage()
+            ]);
         }
+    }
+
+    // New method to sync for date range
+    private function syncSalaryRecordsForDateRange($startDate, $endDate, $driverId = null)
+    {
+        $driversQuery = Driver::whereHas('driverSalary', function($query) {
+            $query->where('is_active', true);
+        });
+
+        if ($driverId) {
+            $driversQuery->where('id', $driverId);
+        }
+
+        $drivers = $driversQuery->get();
+        $syncedCount = 0;
+
+        $currentDate = Carbon::parse($startDate);
+        $endDate = Carbon::parse($endDate);
+
+        while ($currentDate->lte($endDate)) {
+            foreach ($drivers as $driver) {
+                if ($this->syncDriverSalaryForDate($driver, $currentDate->toDateString())) {
+                    $syncedCount++;
+                }
+            }
+            $currentDate->addDay();
+        }
+
+        return $syncedCount;
     }
 
     // Make payment to driver
@@ -276,46 +327,139 @@ class DriverSalaryController extends Controller
         }
     }
 
-    // Private helper methods
+    // FIXED: Enhanced private helper method for syncing driver salary
     private function syncDriverSalaryForDate($driver, $date)
     {
-        // Get trips for the driver on this date
-        $tripsData = Trip::where('driver_id', $driver->id)
-            ->whereDate('delivery_date', $date)
-            ->selectRaw('
-                SUM(paid_amount) as total_earned,
+        try {
+            // Get trips for the driver on this date
+            // Adjust field names based on your actual Trip model structure
+            $tripsData = Trip::where('driver_id', $driver->id)
+                ->whereDate('created_at', $date) // Use appropriate date field from your trips table
+                ->selectRaw('
+                    SUM(CASE
+                        WHEN amount IS NOT NULL THEN amount
+                        WHEN total_amount IS NOT NULL THEN total_amount
+                        WHEN fare IS NOT NULL THEN fare
+                        WHEN cost IS NOT NULL THEN cost
+                        ELSE 0
+                    END) as total_earned,
+                    COUNT(*) as total_trips
+                ')
+                ->first();
+
+            $earnedAmount = $tripsData->total_earned ?? 0;
+            $totalTrips = $tripsData->total_trips ?? 0;
+
+            // Always create/update record even if no trips (to track expected salary)
+            // This helps maintain continuity in salary records
+
+            // Get expected salary for this date
+            $expectedAmount = $driver->driverSalary->getExpectedSalaryForDate($date);
+
+            // Get previous balance
+            $previousRecord = DriverSalaryRecord::where('driver_id', $driver->id)
+                ->where('record_date', '<', $date)
+                ->orderBy('record_date', 'desc')
+                ->first();
+
+            $previousBalance = $previousRecord ? $previousRecord->balance_amount : 0;
+
+            // Create or update salary record
+            $salaryRecord = DriverSalaryRecord::updateOrCreate([
+                'driver_id' => $driver->id,
+                'record_date' => $date,
+            ], [
+                'earned_amount' => $earnedAmount,
+                'expected_amount' => $expectedAmount,
+                'previous_balance' => $previousBalance,
+                'total_trips' => $totalTrips,
+            ]);
+
+            // Update balance and payment status
+            $salaryRecord->updateBalance();
+
+            return true;
+
+        } catch (\Exception $e) {
+            \Log::error("Error syncing salary for driver {$driver->id} on {$date}: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    // OPTIONAL: Method to check and display available trip table columns for debugging
+    public function checkTripColumns()
+    {
+        try {
+            $columns = DB::select("DESCRIBE trips");
+            return response()->json([
+                'columns' => $columns,
+                'sample_trip' => Trip::first()
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()]);
+        }
+    }
+
+    // ENHANCED: Method to get trip earnings with multiple field fallbacks
+    private function getTripEarningsForDriver($driverId, $date)
+    {
+        // Try different possible field names for trip earnings
+        $possibleEarningFields = [
+            'paid_amount',
+            'amount',
+            'total_amount',
+            'fare',
+            'cost',
+            'price',
+            'earning',
+            'revenue'
+        ];
+
+        // Get the first trip to check available columns
+        $sampleTrip = Trip::first();
+        if (!$sampleTrip) {
+            return ['total_earned' => 0, 'total_trips' => 0];
+        }
+
+        $availableFields = array_keys($sampleTrip->getAttributes());
+        $earningField = null;
+
+        // Find the first available field that could represent earnings
+        foreach ($possibleEarningFields as $field) {
+            if (in_array($field, $availableFields)) {
+                $earningField = $field;
+                break;
+            }
+        }
+
+        if (!$earningField) {
+            \Log::warning("No earning field found in trips table for driver salary calculation");
+            return ['total_earned' => 0, 'total_trips' => 0];
+        }
+
+        // Use the appropriate date field
+        $possibleDateFields = ['delivery_date', 'trip_date', 'created_at', 'date'];
+        $dateField = 'created_at'; // default
+
+        foreach ($possibleDateFields as $field) {
+            if (in_array($field, $availableFields)) {
+                $dateField = $field;
+                break;
+            }
+        }
+
+        $tripsData = Trip::where('driver_id', $driverId)
+            ->whereDate($dateField, $date)
+            ->selectRaw("
+                SUM(COALESCE({$earningField}, 0)) as total_earned,
                 COUNT(*) as total_trips
-            ')
+            ")
             ->first();
 
-        $earnedAmount = $tripsData->total_earned ?? 0;
-        $totalTrips = $tripsData->total_trips ?? 0;
-
-        // Get expected salary for this date
-        $expectedAmount = $driver->driverSalary->getExpectedSalaryForDate($date);
-
-        // Get previous balance
-        $previousRecord = DriverSalaryRecord::where('driver_id', $driver->id)
-            ->where('record_date', '<', $date)
-            ->orderBy('record_date', 'desc')
-            ->first();
-
-        $previousBalance = $previousRecord ? $previousRecord->balance_amount : 0;
-
-        // Create or update salary record
-        $salaryRecord = DriverSalaryRecord::updateOrCreate([
-            'driver_id' => $driver->id,
-            'record_date' => $date,
-        ], [
-            'earned_amount' => $earnedAmount,
-            'expected_amount' => $expectedAmount,
-            'previous_balance' => $previousBalance,
-            'total_trips' => $totalTrips,
-        ]);
-
-        $salaryRecord->updateBalance();
-
-        return true;
+        return [
+            'total_earned' => $tripsData->total_earned ?? 0,
+            'total_trips' => $tripsData->total_trips ?? 0
+        ];
     }
 
     private function getDateRange($period, $startDate = null, $endDate = null)

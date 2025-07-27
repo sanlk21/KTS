@@ -6,7 +6,7 @@
         <p class="text-gray-600 mt-1">Set up salary configuration for a driver</p>
       </div>
       <Link
-        :href="route('driver-salaries.index')"
+        :href="route('Salaries.index')"
         class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
       >
         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -239,7 +239,7 @@
           <!-- Form Actions -->
           <div class="flex justify-end space-x-3 pt-6 border-t border-gray-200">
             <Link
-              :href="route('driver-salaries.index')"
+              :href="route('Salaries.index')"
               class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
             >
               <span>Cancel</span>
@@ -264,11 +264,17 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { Link, useForm } from '@inertiajs/vue3'
+import { Link, useForm, router } from '@inertiajs/vue3'
 
 const props = defineProps({
-  drivers: Array,
-  errors: Object
+  drivers: {
+    type: Array,
+    default: () => []
+  },
+  errors: {
+    type: Object,
+    default: () => ({})
+  }
 })
 
 const processing = ref(false)
@@ -341,9 +347,17 @@ watch(() => form.driver_id, async (newDriverId) => {
 })
 
 const submit = () => {
+  if (form.processing) return
+
   processing.value = true
 
-  form.post(route('driver-salaries.store'), {
+  form.post(route('Salaries.store'), {
+    onSuccess: () => {
+      // Handle success
+    },
+    onError: (errors) => {
+      console.error('Form submission errors:', errors)
+    },
     onFinish: () => {
       processing.value = false
     }
