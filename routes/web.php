@@ -17,7 +17,9 @@ Route::get('/', function () {
         'phpVersion' => PHP_VERSION,
     ]);
 });
-
+Route::get('/trips/{id}/pdf', [TripController::class, 'exportTripPDF'])->name('trips.pdf');
+Route::get('/batches/{batchId}/pdf', [TripController::class, 'exportBatchPDF'])->name('batches.pdf');
+Route::get('/trips/reports/preview', [TripController::class, 'previewReportPDF'])->name('trips.reports.preview');
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');

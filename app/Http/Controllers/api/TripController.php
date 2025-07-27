@@ -10,6 +10,7 @@ use App\Models\Plant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 
 class TripController extends Controller
@@ -530,13 +531,54 @@ class TripController extends Controller
 
     private function exportToPDF($data)
     {
-        // This would implement PDF export functionality
-        // You could use libraries like DomPDF or wkhtmltopdf
+        // Prepare data for PDF
+        $pdfData = [
+            'title' => 'Trip Reports & Analytics',
+            'generated_at' => Carbon::now()->format('F j, Y g:i A'),
+            'period' => ucfirst($data['period']),
+            'date_range' => $data['date_range'],
+            'summary' => $data['summary'],
+            'driver_stats' => $data['driver_stats'],
+            'plant_stats' => $data['plant_stats'],
+            'revenue_trend' => $data['revenue_trend'],
+            'daily_income' => $data['daily_income'],
+            'batch_stats' => $data['batch_stats'] ?? [],
+            'selected_plant' => null,
+        ];
 
-        // For now, return JSON response indicating export functionality
-        return response()->json([
-            'message' => 'PDF export functionality would be implemented here',
-            'data' => $data
+        // Add plant name if filtered
+        if (!empty($data['selected_plant_id'])) {
+            $plant = Plant::find($data['selected_plant_id']);
+            $pdfData['selected_plant'] = $plant ? $plant->name : null;
+        }
+
+        // Format date range for display
+        $startDate = Carbon::parse($data['date_range']['start'])->format('F j, Y');
+        $endDate = Carbon::parse($data['date_range']['end'])->format('F j, Y');
+        $pdfData['formatted_date_range'] = $startDate . ' - ' . $endDate;
+
+        // Generate PDF
+        $pdf = Pdf::loadView('reports.trip-report', $pdfData);
+
+        // Set PDF options
+        $pdf->setPaper('A4', 'portrait');
+        $pdf->setOptions([
+            'isHtml5ParserEnabled' => true,
+            'isPhpEnabled' => true,
+            'defaultFont' => 'Arial'
         ]);
+
+        // Generate filename
+        $filename = 'trip-report-' . strtolower($data['period']) . '-' . Carbon::now()->format('Y-m-d') . '.pdf';
+
+        // Return PDF download
+        return $pdf->download($filename);
     }
+
+    // Add this helper method for formatting currency in views
+    public static function formatCurrency($value)
+    {
+        return 'Rs. ' . number_format($value, 2);
+    }
+
 }
