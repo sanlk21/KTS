@@ -3,9 +3,29 @@
         <Head title="Dashboard" />
 
         <div class="container mx-auto p-6">
-            <h1 class="text-3xl font-bold text-gray-800 mb-6">
-                KTS Transport Dashboard
-            </h1>
+            <!-- Header with Logo and Add Trip Button -->
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center">
+                    <div class="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center mr-4 shadow-lg">
+                        <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-800">
+                            KTS Transport Dashboard
+                        </h1>
+                        <p class="text-sm text-gray-600">Transport Management System</p>
+                    </div>
+                </div>
+                <Link :href="route('trips.create')"
+                    class="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition duration-200 transform hover:scale-105 flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Add New Trip
+                </Link>
+            </div>
 
             <!-- Loading State -->
             <div v-if="loading" class="flex justify-center items-center py-12">
@@ -178,7 +198,7 @@
                             <div class="flex items-center justify-between">
                                 <div>
                                     <p class="text-green-100 text-sm">Total Revenue</p>
-                                    <p class="text-2xl font-bold">₹{{ formatCurrency(reports.income.total_revenue) }}</p>
+                                    <p class="text-2xl font-bold">Rs {{ formatCurrency(reports.income.total_revenue) }}</p>
                                 </div>
                                 <div class="bg-green-400 bg-opacity-30 rounded-full p-2">
                                     <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
@@ -192,7 +212,7 @@
                             <div class="flex items-center justify-between">
                                 <div>
                                     <p class="text-blue-100 text-sm">Total Expenses</p>
-                                    <p class="text-2xl font-bold">₹{{ formatCurrency(reports.income.total_expenses) }}</p>
+                                    <p class="text-2xl font-bold">Rs {{ formatCurrency(reports.income.total_expenses) }}</p>
                                 </div>
                                 <div class="bg-blue-400 bg-opacity-30 rounded-full p-2">
                                     <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
@@ -206,7 +226,7 @@
                             <div class="flex items-center justify-between">
                                 <div>
                                     <p class="text-purple-100 text-sm">Net Profit</p>
-                                    <p class="text-2xl font-bold">₹{{ formatCurrency(reports.income.net_profit) }}</p>
+                                    <p class="text-2xl font-bold">Rs {{ formatCurrency(reports.income.net_profit) }}</p>
                                 </div>
                                 <div class="bg-purple-400 bg-opacity-30 rounded-full p-2">
                                     <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
@@ -220,7 +240,7 @@
                             <div class="flex items-center justify-between">
                                 <div>
                                     <p class="text-orange-100 text-sm">Pending Payments</p>
-                                    <p class="text-2xl font-bold">₹{{ formatCurrency(reports.income.pending) }}</p>
+                                    <p class="text-2xl font-bold">Rs {{ formatCurrency(reports.income.pending) }}</p>
                                 </div>
                                 <div class="bg-orange-400 bg-opacity-30 rounded-full p-2">
                                     <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
@@ -392,7 +412,7 @@ const renderCharts = () => {
             data: {
                 labels: reports.value.driver_salaries.map(d => d.name),
                 datasets: [{
-                    label: 'Salary (₹)',
+                    label: 'Salary (Rs)',
                     data: reports.value.driver_salaries.map(d => d.salary),
                     backgroundColor: 'rgba(34, 197, 94, 0.8)',
                     borderColor: 'rgba(34, 197, 94, 1)',
@@ -408,7 +428,7 @@ const renderCharts = () => {
                     tooltip: {
                         callbacks: {
                             label: function(context) {
-                                return `${context.label}: ₹${new Intl.NumberFormat('en-IN').format(context.raw)}`;
+                                return `${context.label}: Rs ${new Intl.NumberFormat('en-IN').format(context.raw)}`;
                             }
                         }
                     }
@@ -418,11 +438,11 @@ const renderCharts = () => {
                         beginAtZero: true,
                         title: {
                             display: true,
-                            text: 'Salary Amount (₹)'
+                            text: 'Salary Amount (Rs)'
                         },
                         ticks: {
                             callback: function(value) {
-                                return '₹' + new Intl.NumberFormat('en-IN').format(value);
+                                return 'Rs ' + new Intl.NumberFormat('en-IN').format(value);
                             }
                         }
                     },

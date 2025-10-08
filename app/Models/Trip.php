@@ -18,15 +18,31 @@ class Trip extends Model
         'delivery_date',
         'delivery_time',
         'trip_amount',
-        'paid_amount'
+        'paid_amount',
+        'advance_amount',
+        'actual_paid',
+        'balance_due',
+        'payment_notes',
+        'trip_number',
+        'batch_id',
+        'total_trips_in_batch',
+        'total_batch_amount',
+        'total_batch_salary',
+        'net_income_per_trip',
+        'total_net_income'
     ];
 
     protected $casts = [
         'delivery_date' => 'date',
         'delivery_time' => 'datetime:H:i:s',
         'trip_amount' => 'decimal:2',
-        'paid_amount' => 'decimal:2'
+        'paid_amount' => 'decimal:2',
+        'advance_amount' => 'decimal:2',
+        'actual_paid' => 'decimal:2',
+        'balance_due' => 'decimal:2'
     ];
+
+    protected $appends = ['driver_current_balance'];
 
     // Relationships
     public function tipper()
@@ -44,10 +60,21 @@ class Trip extends Model
         return $this->belongsTo(Plant::class, 'plant_id');
     }
 
+    public function advances()
+    {
+        return $this->hasMany(DriverAdvance::class);
+    }
+
     // Accessors
     public function getBalanceAmountAttribute()
     {
         return $this->trip_amount - $this->paid_amount;
+    }
+
+    public function getDriverCurrentBalanceAttribute()
+    {
+        if (!$this->driver_id) return 0;
+        return DriverAdvance::getCurrentBalance($this->driver_id);
     }
 
     public function getFormattedDeliveryTimeAttribute()
