@@ -8,6 +8,7 @@ use App\Http\Controllers\DriverController;
 use App\Http\Controllers\PlantController;
 use App\Http\Controllers\Api\TripController;
 use App\Http\Controllers\Api\DriverSalaryController;
+use App\Http\Controllers\DashboardController;
 use Inertia\Inertia;
 
 Route::get('/', function () {
@@ -22,10 +23,14 @@ Route::get('/', function () {
 Route::get('/trips/{id}/pdf', [TripController::class, 'exportTripPDF'])->name('trips.pdf');
 Route::get('/batches/{batchId}/pdf', [TripController::class, 'exportBatchPDF'])->name('batches.pdf');
 Route::get('/trips/reports/preview', [TripController::class, 'previewReportPDF'])->name('trips.reports.preview');
+Route::get('/drivers/{driver}/balance', [DriverController::class, 'getBalance']);
+Route::get('/api/drivers/{driver}/balance', [DriverController::class, 'getBalance']);
 
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+
+
+Route::get('/dashboard', [DashboardController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
