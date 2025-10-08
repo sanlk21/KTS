@@ -126,4 +126,34 @@ class Trip extends Model
     {
         return $query->whereRaw('trip_amount = paid_amount');
     }
+
+    // New scope for batch trips
+    public function scopeByBatch($query, $batchId)
+    {
+        return $query->where('batch_id', $batchId);
+    }
+
+    // New scope for date range
+    public function scopeDateRange($query, $startDate, $endDate)
+    {
+        return $query->whereBetween('delivery_date', [$startDate, $endDate]);
+    }
+
+    // New method to calculate total advance given in batch
+    public function getTotalAdvanceInBatchAttribute()
+    {
+        if (!$this->batch_id) return 0;
+        
+        return self::where('batch_id', $this->batch_id)
+            ->sum('advance_amount');
+    }
+
+    // New method to calculate total actual paid in batch
+    public function getTotalActualPaidInBatchAttribute()
+    {
+        if (!$this->batch_id) return 0;
+        
+        return self::where('batch_id', $this->batch_id)
+            ->sum('actual_paid');
+    }
 }
