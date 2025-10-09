@@ -13,7 +13,7 @@
         <div v-if="driverBalance !== 0 && form.driver_id" class="mb-6">
           <div :class="balanceAlertClass" class="p-4 rounded-lg flex items-center justify-between">
             <div>
-              <h3 class="font-semibold text-lg">Driver Balance: {{ formatCurrency(Math.abs(driverBalance)) }}</h3>
+              <h3 class="font-semibold text-lg">{{ balanceTitle }}</h3>
               <p class="text-sm mt-1">{{ balanceMessage }}</p>
             </div>
             <i :class="balanceIconClass" class="text-3xl"></i>
@@ -56,6 +56,9 @@
                   :class="{ 'bg-blue-50 text-blue-700 font-medium': isPreferredDriver(driver) }"
                 >
                   {{ driver.name }} - {{ driver.phone }}
+                  <span v-if="driver.current_balance !== undefined">
+                    ({{ driver.current_balance < 0 ? 'Owes: Rs ' + Math.abs(driver.current_balance).toFixed(2) : 'Balance: Rs 0.00' }})
+                  </span>
                 </option>
               </select>
               <p v-if="form.errors.driver_id" class="mt-1 text-sm text-red-600">{{ form.errors.driver_id }}</p>
@@ -86,7 +89,7 @@
                 :class="{ 'border-red-500': form.errors.total_trips }"
               >
                 <option value="">Select Number of Trips</option>
-                <option v-for="n in 7" :key="n" :value="n">{{ n }} Trip{{ n > 1 ? 's' : '' }}</option>
+                <option v-for="n in 20" :key="n" :value="n">{{ n }} Trip{{ n > 1 ? 's' : '' }}</option>
               </select>
               <p v-if="form.errors.total_trips" class="mt-1 text-sm text-red-600">{{ form.errors.total_trips }}</p>
             </div>
@@ -163,6 +166,7 @@
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-2">
                     Give Advance Payment
+                    <span class="text-xs text-gray-500">(Any amount allowed)</span>
                   </label>
                   <div class="relative">
                     <span class="absolute left-3 top-2 text-gray-500">Rs</span>
@@ -171,12 +175,11 @@
                       type="number"
                       step="0.01"
                       min="0"
-                      :max="totalDriverSalary"
                       class="w-full pl-12 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
                       placeholder="0.00"
                     />
                   </div>
-                  <p class="text-xs text-gray-500 mt-1">Amount given in advance</p>
+                  <p class="text-xs text-gray-500 mt-1">Any amount can be given as advance</p>
                 </div>
 
                 <!-- Deduct from Salary -->
@@ -462,33 +465,51 @@ const newDriverBalance = computed(() => {
 })
 
 const newBalanceText = computed(() => {
-  return newDriverBalance.value < 0 ? 'Driver owes' : 'Driver balance'
+  if (newDriverBalance.value < 0) return 'Driver will owe'
+  if (newDriverBalance.value > 0) return 'Driver will have credit'
+  return 'Driver balance will be zero'
 })
 
 const newBalanceClass = computed(() => {
-  return newDriverBalance.value < 0 ? 'text-red-600' : 'text-green-600'
+  return newDriverBalance.value < 0 ? 'text-red-600' : 
+         newDriverBalance.value > 0 ? 'text-green-600' : 'text-gray-600'
 })
 
 const newBalanceTextClass = computed(() => {
-  return newDriverBalance.value < 0 ? 'text-red-500' : 'text-green-500'
+  return newDriverBalance.value < 0 ? 'text-red-500' : 
+         newDriverBalance.value > 0 ? 'text-green-500' : 'text-gray-500'
 })
 
 const balanceAlertClass = computed(() => {
   return driverBalance.value < 0 
     ? 'bg-red-50 border border-red-200' 
-    : 'bg-green-50 border border-green-200'
+    : driverBalance.value > 0
+    ? 'bg-green-50 border border-green-200'
+    : 'bg-gray-50 border border-gray-200'
 })
 
 const balanceIconClass = computed(() => {
   return driverBalance.value < 0 
     ? 'fas fa-exclamation-triangle text-red-500' 
-    : 'fas fa-check-circle text-green-500'
+    : driverBalance.value > 0
+    ? 'fas fa-info-circle text-green-500'
+    : 'fas fa-check-circle text-gray-500'
+})
+
+const balanceTitle = computed(() => {
+  if (driverBalance.value < 0) 
+    return `Driver Owes: ${formatCurrency(Math.abs(driverBalance.value))}`
+  if (driverBalance.value > 0) 
+    return `Driver Has Credit: ${formatCurrency(driverBalance.value)}`
+  return 'Driver Balance: Rs 0.00'
 })
 
 const balanceMessage = computed(() => {
   return driverBalance.value < 0 
     ? 'Driver has outstanding advance. Consider deducting from this trip.'
-    : 'Driver has positive balance.'
+    : driverBalance.value > 0
+    ? 'Driver has positive balance (credit).'
+    : 'Driver has no advance balance.'
 })
 
 // Driver helpers
