@@ -1,59 +1,103 @@
 <template>
   <AuthenticatedLayout>
-    <div class="container mx-auto px-4 py-8">
-      <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold text-gray-900">Create New Trip(s)</h1>
-        <Link :href="route('trips.index')" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+    <!-- Subtle Animated Background -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none opacity-30">
+      <div class="absolute top-0 left-0 w-96 h-96 bg-blue-100 rounded-full mix-blend-multiply filter blur-3xl animate-float"></div>
+      <div class="absolute top-0 right-0 w-96 h-96 bg-purple-100 rounded-full mix-blend-multiply filter blur-3xl animate-float-delayed"></div>
+      <div class="absolute bottom-0 left-1/2 w-96 h-96 bg-indigo-100 rounded-full mix-blend-multiply filter blur-3xl animate-float-slow"></div>
+    </div>
+
+    <div class="container mx-auto px-4 py-8 relative z-10">
+      <!-- Modern Header -->
+      <div class="flex justify-between items-center mb-8 animate-fade-in-down">
+        <div>
+          <h1 class="text-4xl font-extrabold text-gray-900 mb-2 tracking-tight">
+            Create New Trip(s)
+          </h1>
+          <p class="text-gray-500 flex items-center">
+            <i class="fas fa-route mr-2 text-blue-500"></i>
+            Manage your delivery trips efficiently
+          </p>
+        </div>
+        <Link :href="route('trips.index')" 
+          class="group px-6 py-3 bg-white text-gray-700 font-semibold rounded-xl shadow-md hover:shadow-xl border-2 border-gray-200 hover:border-gray-300 transition-all duration-300 hover:-translate-y-1">
+          <i class="fas fa-arrow-left mr-2 group-hover:-translate-x-1 transition-transform duration-300 inline-block"></i>
           Back to Trips
         </Link>
       </div>
 
-      <div class="bg-white rounded-lg shadow-md p-6">
-        <!-- Driver Balance Alert -->
-        <div v-if="driverBalance !== 0 && form.driver_id" class="mb-6">
-          <div :class="balanceAlertClass" class="p-4 rounded-lg flex items-center justify-between">
-            <div>
-              <h3 class="font-semibold text-lg">{{ balanceTitle }}</h3>
-              <p class="text-sm mt-1">{{ balanceMessage }}</p>
+      <div class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden animate-fade-in">
+        <!-- Driver Balance Alert with Modern Design -->
+        <transition name="slide-fade">
+          <div v-if="driverBalance !== 0 && form.driver_id" class="m-6 mb-0">
+            <div :class="balanceAlertClass" class="p-6 rounded-xl shadow-lg border-l-4 animate-slide-in-right">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                  <div class="p-3 rounded-full" :class="balanceIconBgClass">
+                    <i :class="balanceIconClass" class="text-2xl"></i>
+                  </div>
+                  <div>
+                    <h3 class="font-bold text-lg text-gray-900">{{ balanceTitle }}</h3>
+                    <p class="text-sm text-gray-600 mt-1">{{ balanceMessage }}</p>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <div class="text-3xl font-bold" :class="balanceAmountClass">
+                    {{ formatCurrency(Math.abs(driverBalance)) }}
+                  </div>
+                  <div class="text-xs text-gray-500 mt-1">Current Balance</div>
+                </div>
+              </div>
             </div>
-            <i :class="balanceIconClass" class="text-3xl"></i>
           </div>
-        </div>
+        </transition>
 
-        <form @submit.prevent="submitForm">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <form @submit.prevent="submitForm" class="p-6">
+          <!-- Main Form Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <!-- Tipper Selection -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Tipper Number *</label>
+            <div class="form-field" style="animation-delay: 0.05s">
+              <label class="form-label">
+                <i class="fas fa-truck text-blue-500 mr-2"></i>
+                Tipper Number *
+              </label>
               <select
                 v-model="form.tipper_number"
                 @change="onTipperChange"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                :class="{ 'border-red-500': form.errors.tipper_number }"
+                class="form-input"
+                :class="{ 'border-red-400 focus:border-red-500 focus:ring-red-200': form.errors.tipper_number }"
               >
                 <option value="">Select Tipper</option>
                 <option v-for="tipper in tippers" :key="tipper.tipper_number" :value="tipper.tipper_number">
                   {{ tipper.tipper_number }} - {{ tipper.size }} Ton
                 </option>
               </select>
-              <p v-if="form.errors.tipper_number" class="mt-1 text-sm text-red-600">{{ form.errors.tipper_number }}</p>
+              <transition name="fade">
+                <p v-if="form.errors.tipper_number" class="error-message">
+                  <i class="fas fa-exclamation-circle mr-1"></i>
+                  {{ form.errors.tipper_number }}
+                </p>
+              </transition>
             </div>
 
             <!-- Driver Selection -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Driver *</label>
+            <div class="form-field" style="animation-delay: 0.1s">
+              <label class="form-label">
+                <i class="fas fa-user text-green-500 mr-2"></i>
+                Driver *
+              </label>
               <select
                 v-model="form.driver_id"
                 @change="onDriverChange"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                :class="{ 'border-red-500': form.errors.driver_id }"
+                class="form-input"
+                :class="{ 'border-red-400 focus:border-red-500 focus:ring-red-200': form.errors.driver_id }"
               >
                 <option value="">Select Driver</option>
                 <option
                   v-for="driver in drivers"
                   :key="driver.id"
                   :value="driver.id"
-                  :class="{ 'bg-blue-50 text-blue-700 font-medium': isPreferredDriver(driver) }"
+                  :class="{ 'bg-blue-50 text-blue-700 font-semibold': isPreferredDriver(driver) }"
                 >
                   {{ driver.name }} - {{ driver.phone }}
                   <span v-if="driver.current_balance !== undefined">
@@ -61,319 +105,435 @@
                   </span>
                 </option>
               </select>
-              <p v-if="form.errors.driver_id" class="mt-1 text-sm text-red-600">{{ form.errors.driver_id }}</p>
+              <transition name="fade">
+                <p v-if="form.errors.driver_id" class="error-message">
+                  <i class="fas fa-exclamation-circle mr-1"></i>
+                  {{ form.errors.driver_id }}
+                </p>
+              </transition>
             </div>
 
             <!-- Plant Selection -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Plant *</label>
+            <div class="form-field" style="animation-delay: 0.15s">
+              <label class="form-label">
+                <i class="fas fa-industry text-purple-500 mr-2"></i>
+                Plant *
+              </label>
               <select
                 v-model="form.plant_id"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                :class="{ 'border-red-500': form.errors.plant_id }"
+                class="form-input"
+                :class="{ 'border-red-400 focus:border-red-500 focus:ring-red-200': form.errors.plant_id }"
               >
                 <option value="">Select Plant</option>
                 <option v-for="plant in plants" :key="plant.id" :value="plant.id">
                   {{ plant.name }} - {{ plant.location }}
                 </option>
               </select>
-              <p v-if="form.errors.plant_id" class="mt-1 text-sm text-red-600">{{ form.errors.plant_id }}</p>
+              <transition name="fade">
+                <p v-if="form.errors.plant_id" class="error-message">
+                  <i class="fas fa-exclamation-circle mr-1"></i>
+                  {{ form.errors.plant_id }}
+                </p>
+              </transition>
             </div>
 
             <!-- Total Trips -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Total Trips *</label>
+            <div class="form-field" style="animation-delay: 0.2s">
+              <label class="form-label">
+                <i class="fas fa-list-ol text-orange-500 mr-2"></i>
+                Total Trips *
+              </label>
               <select
                 v-model="form.total_trips"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                :class="{ 'border-red-500': form.errors.total_trips }"
+                class="form-input"
+                :class="{ 'border-red-400 focus:border-red-500 focus:ring-red-200': form.errors.total_trips }"
               >
                 <option value="">Select Number of Trips</option>
                 <option v-for="n in 20" :key="n" :value="n">{{ n }} Trip{{ n > 1 ? 's' : '' }}</option>
               </select>
-              <p v-if="form.errors.total_trips" class="mt-1 text-sm text-red-600">{{ form.errors.total_trips }}</p>
+              <transition name="fade">
+                <p v-if="form.errors.total_trips" class="error-message">
+                  <i class="fas fa-exclamation-circle mr-1"></i>
+                  {{ form.errors.total_trips }}
+                </p>
+              </transition>
             </div>
 
             <!-- Delivery Date -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Delivery Date *</label>
+            <div class="form-field" style="animation-delay: 0.25s">
+              <label class="form-label">
+                <i class="fas fa-calendar text-indigo-500 mr-2"></i>
+                Delivery Date *
+              </label>
               <input
                 v-model="form.delivery_date"
                 type="date"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                :class="{ 'border-red-500': form.errors.delivery_date }"
+                class="form-input"
+                :class="{ 'border-red-400 focus:border-red-500 focus:ring-red-200': form.errors.delivery_date }"
               />
-              <p v-if="form.errors.delivery_date" class="mt-1 text-sm text-red-600">{{ form.errors.delivery_date }}</p>
+              <transition name="fade">
+                <p v-if="form.errors.delivery_date" class="error-message">
+                  <i class="fas fa-exclamation-circle mr-1"></i>
+                  {{ form.errors.delivery_date }}
+                </p>
+              </transition>
             </div>
 
             <!-- Delivery Time -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Delivery Time</label>
+            <div class="form-field" style="animation-delay: 0.3s">
+              <label class="form-label">
+                <i class="fas fa-clock text-teal-500 mr-2"></i>
+                Delivery Time
+              </label>
               <input
                 v-model="form.delivery_time"
                 type="time"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="form-input"
               />
             </div>
 
-            <!-- Trip Amount Per Trip -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Trip Amount (Per Trip) *</label>
+            <!-- Trip Amount -->
+            <div class="form-field" style="animation-delay: 0.35s">
+              <label class="form-label">
+                <i class="fas fa-dollar-sign text-green-500 mr-2"></i>
+                Trip Amount (Per Trip) *
+              </label>
               <div class="relative">
-                <span class="absolute left-3 top-2 text-gray-500">Rs</span>
+                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-semibold text-sm"></span>
                 <input
                   v-model="form.trip_amount_per_trip"
                   type="number"
                   step="0.01"
                   min="0"
-                  class="w-full pl-12 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  :class="{ 'border-red-500': form.errors.trip_amount_per_trip }"
-                  placeholder="0.00"
+                  class="form-input pl-12"
+                  :class="{ 'border-red-400 focus:border-red-500 focus:ring-red-200': form.errors.trip_amount_per_trip }"
+                  placeholder="Rs:0.00"
                 />
               </div>
-              <p v-if="form.errors.trip_amount_per_trip" class="mt-1 text-sm text-red-600">{{ form.errors.trip_amount_per_trip }}</p>
+              <transition name="fade">
+                <p v-if="form.errors.trip_amount_per_trip" class="error-message">
+                  <i class="fas fa-exclamation-circle mr-1"></i>
+                  {{ form.errors.trip_amount_per_trip }}
+                </p>
+              </transition>
             </div>
 
-            <!-- Driver Salary Per Trip -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Driver Salary (Per Trip) *</label>
+            <!-- Driver Salary -->
+            <div class="form-field" style="animation-delay: 0.4s">
+              <label class="form-label">
+                <i class="fas fa-wallet text-red-500 mr-2"></i>
+                Driver Salary (Per Trip) *
+              </label>
               <div class="relative">
-                <span class="absolute left-3 top-2 text-gray-500">Rs</span>
+                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-semibold text-sm"></span>
                 <input
                   v-model="form.driver_salary_per_trip"
                   type="number"
                   step="0.01"
                   min="0"
-                  class="w-full pl-12 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  :class="{ 'border-red-500': form.errors.driver_salary_per_trip }"
-                  placeholder="0.00"
+                  class="form-input pl-12"
+                  :class="{ 'border-red-400 focus:border-red-500 focus:ring-red-200': form.errors.driver_salary_per_trip }"
+                  placeholder="RS: 0.00"
                 />
               </div>
-              <p v-if="form.errors.driver_salary_per_trip" class="mt-1 text-sm text-red-600">{{ form.errors.driver_salary_per_trip }}</p>
+              <transition name="fade">
+                <p v-if="form.errors.driver_salary_per_trip" class="error-message">
+                  <i class="fas fa-exclamation-circle mr-1"></i>
+                  {{ form.errors.driver_salary_per_trip }}
+                </p>
+              </transition>
             </div>
           </div>
 
-          <!-- Advanced Payment Section -->
-          <div v-if="form.driver_id && form.driver_salary_per_trip && form.total_trips" class="mt-8">
-            <div class="bg-yellow-50 rounded-lg p-6 border border-yellow-200">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <i class="fas fa-hand-holding-usd text-yellow-600 mr-2"></i>
-                Advanced Payment Management
-              </h3>
-
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
-                <!-- Give Advance -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">
-                    Give Advance Payment
-                    <span class="text-xs text-gray-500">(Any amount allowed)</span>
-                  </label>
-                  <div class="relative">
-                    <span class="absolute left-3 top-2 text-gray-500">Rs</span>
-                    <input
-                      v-model="form.advance_amount"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      class="w-full pl-12 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <p class="text-xs text-gray-500 mt-1">Any amount can be given as advance</p>
-                </div>
-
-                <!-- Deduct from Salary -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">
-                    Deduct from Salary
-                    <span v-if="driverBalance < 0" class="text-xs text-red-600">(Owes: {{ formatCurrency(Math.abs(driverBalance)) }})</span>
-                  </label>
-                  <div class="relative">
-                    <span class="absolute left-3 top-2 text-gray-500">Rs</span>
-                    <input
-                      v-model="form.deduction_amount"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      :max="Math.min(totalDriverSalary, Math.abs(driverBalance))"
-                      class="w-full pl-12 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div class="flex gap-2 mt-2">
-                    <button
-                      v-if="driverBalance < 0"
-                      type="button"
-                      @click="setDeductionFull"
-                      class="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
-                    >
-                      Deduct Full ({{ formatCurrency(Math.min(totalDriverSalary, Math.abs(driverBalance))) }})
-                    </button>
-                    <button
-                      v-if="driverBalance < 0"
-                      type="button"
-                      @click="setDeductionHalf"
-                      class="text-xs px-2 py-1 bg-orange-100 text-orange-700 rounded hover:bg-orange-200"
-                    >
-                      Deduct Half ({{ formatCurrency(Math.min(totalDriverSalary / 2, Math.abs(driverBalance))) }})
-                    </button>
-                  </div>
-                </div>
-
-                <!-- Payment Notes -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">
-                    Payment Notes
-                  </label>
-                  <textarea
-                    v-model="form.payment_notes"
-                    rows="2"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Optional payment notes..."
-                  ></textarea>
-                </div>
-              </div>
-
-              <!-- Payment Calculation Summary -->
-              <div class="bg-white rounded-lg p-4 border-2 border-yellow-300">
-                <div class="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-                  <div>
-                    <div class="text-gray-600">Total Salary</div>
-                    <div class="font-bold text-green-600">{{ formatCurrency(totalDriverSalary) }}</div>
-                  </div>
-                  <div v-if="form.advance_amount > 0">
-                    <div class="text-gray-600">+ Advance</div>
-                    <div class="font-bold text-yellow-600">{{ formatCurrency(parseFloat(form.advance_amount || 0)) }}</div>
-                  </div>
-                  <div v-if="form.deduction_amount > 0">
-                    <div class="text-gray-600">- Deduction</div>
-                    <div class="font-bold text-red-600">{{ formatCurrency(parseFloat(form.deduction_amount || 0)) }}</div>
-                  </div>
-                  <div>
-                    <div class="text-gray-600">= Actually Paid</div>
-                    <div class="font-bold text-blue-600">{{ formatCurrency(actuallyPaidAmount) }}</div>
-                  </div>
-                  <div>
-                    <div class="text-gray-600">New Balance</div>
-                    <div class="font-bold" :class="newBalanceClass">{{ formatCurrency(Math.abs(newDriverBalance)) }}</div>
-                    <div class="text-xs" :class="newBalanceTextClass">{{ newBalanceText }}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Trip Calculations Summary -->
-          <div v-if="form.trip_amount_per_trip && form.driver_salary_per_trip && form.total_trips" class="mt-8">
-            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <i class="fas fa-calculator text-blue-600 mr-2"></i>
-                Trip Calculations Summary
-              </h3>
-
-              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <!-- Per Trip Calculations -->
-                <div class="bg-white rounded-lg p-4 shadow-sm">
-                  <h4 class="text-sm font-medium text-gray-600 mb-2">Per Trip</h4>
-                  <div class="space-y-2">
-                    <div class="flex justify-between">
-                      <span class="text-sm text-gray-600">Amount:</span>
-                      <span class="text-sm font-medium text-green-600">{{ formatCurrency(parseFloat(form.trip_amount_per_trip || 0)) }}</span>
+          <!-- Advanced Payment Section - Redesigned -->
+          <transition name="expand">
+            <div v-if="form.driver_id && form.driver_salary_per_trip && form.total_trips" class="mb-8">
+              <div class="bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 rounded-2xl p-6 border-2 border-amber-200 shadow-lg animate-scale-in">
+                <div class="flex items-center justify-between mb-6">
+                  <h3 class="text-xl font-bold text-gray-900 flex items-center">
+                    <div class="p-2 bg-amber-100 rounded-lg mr-3">
+                      <i class="fas fa-hand-holding-usd text-amber-600 text-xl"></i>
                     </div>
-                    <div class="flex justify-between">
-                      <span class="text-sm text-gray-600">Driver Salary:</span>
-                      <span class="text-sm font-medium text-red-600">{{ formatCurrency(parseFloat(form.driver_salary_per_trip || 0)) }}</span>
+                    Advanced Payment Management
+                  </h3>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                  <!-- Give Advance -->
+                  <div class="bg-white rounded-xl p-5 shadow-sm border border-amber-100 hover:shadow-md transition-shadow duration-300">
+                    <label class="block text-sm font-bold text-gray-800 mb-3">
+                      <i class="fas fa-arrow-up text-amber-500 mr-2"></i>
+                      Give Advance Payment
+                    </label>
+                    <div class="relative">
+                      <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold text-sm">Rs</span>
+                      <input
+                        v-model="form.advance_amount"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        class="w-full pl-11 pr-3 py-2.5 border-2 border-amber-200 rounded-lg focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-100 transition-all duration-300 text-gray-900 font-semibold"
+                        placeholder="0.00"
+                      />
                     </div>
-                    <div class="flex justify-between border-t pt-2">
-                      <span class="text-sm font-medium text-gray-900">Your Income:</span>
-                      <span :class="incomePerTripClass" class="text-sm font-bold">
-                        {{ formatCurrency(incomePerTrip) }}
+                    <p class="text-xs text-gray-500 mt-2">Any amount can be given</p>
+                  </div>
+
+                  <!-- Deduct from Salary -->
+                  <div class="bg-white rounded-xl p-5 shadow-sm border border-red-100 hover:shadow-md transition-shadow duration-300">
+                    <label class="block text-sm font-bold text-gray-800 mb-3">
+                      <i class="fas fa-arrow-down text-red-500 mr-2"></i>
+                      Deduct from Salary
+                      <span v-if="driverBalance < 0" class="block text-xs text-red-600 font-semibold mt-1">
+                        Owes: {{ formatCurrency(Math.abs(driverBalance)) }}
                       </span>
+                    </label>
+                    <div class="relative">
+                      <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold text-sm">Rs</span>
+                      <input
+                        v-model="form.deduction_amount"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        :max="Math.min(totalDriverSalary, Math.abs(driverBalance))"
+                        class="w-full pl-11 pr-3 py-2.5 border-2 border-red-200 rounded-lg focus:outline-none focus:border-red-400 focus:ring-4 focus:ring-red-100 transition-all duration-300 text-gray-900 font-semibold"
+                        placeholder="0.00"
+                      />
                     </div>
+                    <div class="flex gap-2 mt-3" v-if="driverBalance < 0">
+                      <button
+                        type="button"
+                        @click="setDeductionFull"
+                        class="flex-1 text-xs px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors duration-300 font-semibold"
+                      >
+                        Full
+                      </button>
+                      <button
+                        type="button"
+                        @click="setDeductionHalf"
+                        class="flex-1 text-xs px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors duration-300 font-semibold"
+                      >
+                        Half
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Payment Notes -->
+                  <div class="bg-white rounded-xl p-5 shadow-sm border border-blue-100 hover:shadow-md transition-shadow duration-300">
+                    <label class="block text-sm font-bold text-gray-800 mb-3">
+                      <i class="fas fa-sticky-note text-blue-500 mr-2"></i>
+                      Payment Notes
+                    </label>
+                    <textarea
+                      v-model="form.payment_notes"
+                      rows="3"
+                      class="w-full px-3 py-2.5 border-2 border-blue-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition-all duration-300 resize-none text-sm"
+                      placeholder="Optional notes..."
+                    ></textarea>
                   </div>
                 </div>
 
-                <!-- Total Calculations -->
-                <div class="bg-white rounded-lg p-4 shadow-sm">
-                  <h4 class="text-sm font-medium text-gray-600 mb-2">Total ({{ form.total_trips }} trips)</h4>
-                  <div class="space-y-2">
-                    <div class="flex justify-between">
-                      <span class="text-sm text-gray-600">Total Amount:</span>
-                      <span class="text-sm font-medium text-green-600">{{ formatCurrency(totalTripAmount) }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                      <span class="text-sm text-gray-600">Total Salary:</span>
-                      <span class="text-sm font-medium text-red-600">{{ formatCurrency(totalDriverSalary) }}</span>
-                    </div>
-                    <div class="flex justify-between border-t pt-2">
-                      <span class="text-sm font-medium text-gray-900">Total Income:</span>
-                      <span :class="totalIncomeClass" class="text-sm font-bold">
-                        {{ formatCurrency(totalIncome) }}
-                      </span>
-                    </div>
+                <!-- Payment Summary Cards -->
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  <div class="bg-white rounded-xl p-4 shadow-sm border-l-4 border-green-400">
+                    <div class="text-xs text-gray-600 mb-1">Total Salary</div>
+                    <div class="text-xl font-bold text-green-600">{{ formatCurrency(totalDriverSalary) }}</div>
                   </div>
-                </div>
-
-                <!-- Profit Analysis -->
-                <div class="bg-white rounded-lg p-4 shadow-sm">
-                  <h4 class="text-sm font-medium text-gray-600 mb-2">Profit Analysis</h4>
-                  <div class="space-y-2">
-                    <div class="flex justify-between">
-                      <span class="text-sm text-gray-600">Profit Margin:</span>
-                      <span :class="profitMarginClass" class="text-sm font-medium">
-                        {{ profitMargin.toFixed(1) }}%
-                      </span>
-                    </div>
-                    <div class="flex justify-between">
-                      <span class="text-sm text-gray-600">Status:</span>
-                      <span :class="statusBadgeClass" class="px-2 py-1 text-xs font-semibold rounded-full">
-                        {{ profitStatus }}
-                      </span>
-                    </div>
-                    <div class="flex justify-between border-t pt-2">
-                      <span class="text-sm text-gray-600">Avg per Trip:</span>
-                      <span :class="avgIncomeClass" class="text-sm font-medium">
-                        {{ formatCurrency(incomePerTrip) }}
-                      </span>
-                    </div>
+                  <div v-if="form.advance_amount > 0" class="bg-white rounded-xl p-4 shadow-sm border-l-4 border-amber-400">
+                    <div class="text-xs text-gray-600 mb-1">+ Advance</div>
+                    <div class="text-xl font-bold text-amber-600">{{ formatCurrency(parseFloat(form.advance_amount || 0)) }}</div>
                   </div>
-                </div>
-
-                <!-- Quick Stats -->
-                <div class="bg-white rounded-lg p-4 shadow-sm">
-                  <h4 class="text-sm font-medium text-gray-600 mb-2">Quick Stats</h4>
-                  <div class="space-y-2">
-                    <div class="flex justify-between">
-                      <span class="text-sm text-gray-600">Total Trips:</span>
-                      <span class="text-sm font-medium text-blue-600">{{ form.total_trips }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                      <span class="text-sm text-gray-600">Driver Share:</span>
-                      <span class="text-sm font-medium text-orange-600">{{ driverSharePercentage.toFixed(1) }}%</span>
-                    </div>
-                    <div class="flex justify-between border-t pt-2">
-                      <span class="text-sm text-gray-600">Your Share:</span>
-                      <span class="text-sm font-medium text-green-600">{{ ownerSharePercentage.toFixed(1) }}%</span>
-                    </div>
+                  <div v-if="form.deduction_amount > 0" class="bg-white rounded-xl p-4 shadow-sm border-l-4 border-red-400">
+                    <div class="text-xs text-gray-600 mb-1">- Deduction</div>
+                    <div class="text-xl font-bold text-red-600">{{ formatCurrency(parseFloat(form.deduction_amount || 0)) }}</div>
+                  </div>
+                  <div class="bg-white rounded-xl p-4 shadow-sm border-l-4 border-blue-400">
+                    <div class="text-xs text-gray-600 mb-1">Actually Paid</div>
+                    <div class="text-xl font-bold text-blue-600">{{ formatCurrency(actuallyPaidAmount) }}</div>
+                  </div>
+                  <div class="bg-white rounded-xl p-4 shadow-sm border-l-4" :class="newDriverBalance < 0 ? 'border-red-400' : 'border-green-400'">
+                    <div class="text-xs text-gray-600 mb-1">New Balance</div>
+                    <div class="text-xl font-bold" :class="newBalanceClass">{{ formatCurrency(Math.abs(newDriverBalance)) }}</div>
+                    <div class="text-xs mt-1" :class="newBalanceTextClass">{{ newBalanceText }}</div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+          </transition>
 
-          <!-- Submit Button -->
-          <div class="mt-8 flex justify-end space-x-4">
-            <Link :href="route('trips.index')" class="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors">
-              <i class="fas fa-arrow-left mr-2"></i>
+          <!-- Trip Calculations - Completely Redesigned -->
+          <transition name="expand">
+            <div v-if="form.trip_amount_per_trip && form.driver_salary_per_trip && form.total_trips" class="mb-8">
+              <div class="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-2xl p-6 border-2 border-blue-200 shadow-lg animate-scale-in">
+                <div class="flex items-center justify-between mb-6">
+                  <h3 class="text-xl font-bold text-gray-900 flex items-center">
+                    <div class="p-2 bg-blue-100 rounded-lg mr-3">
+                      <i class="fas fa-calculator text-blue-600 text-xl"></i>
+                    </div>
+                    Trip Calculations Summary
+                  </h3>
+                  <div class="flex items-center space-x-2 bg-white px-4 py-2 rounded-lg shadow-sm">
+                    <i class="fas fa-chart-line text-gray-500"></i>
+                    <span class="text-sm font-semibold text-gray-700">{{ form.total_trips }} Trips</span>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                  <!-- Per Trip Card -->
+                  <div class="bg-white rounded-xl p-5 shadow-md border border-blue-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+                    <div class="flex items-center justify-between mb-4">
+                      <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Per Trip</h4>
+                      <div class="p-2 bg-blue-50 rounded-lg">
+                        <i class="fas fa-truck text-blue-500"></i>
+                      </div>
+                    </div>
+                    <div class="space-y-3">
+                      <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Amount:</span>
+                        <span class="text-base font-bold text-green-600">{{ formatCurrency(parseFloat(form.trip_amount_per_trip || 0)) }}</span>
+                      </div>
+                      <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Salary:</span>
+                        <span class="text-base font-bold text-red-600">{{ formatCurrency(parseFloat(form.driver_salary_per_trip || 0)) }}</span>
+                      </div>
+                      <div class="flex justify-between items-center pt-3 border-t-2 border-gray-100">
+                        <span class="text-sm font-bold text-gray-900">Income:</span>
+                        <span :class="incomePerTripClass" class="text-lg font-bold">
+                          {{ formatCurrency(incomePerTrip) }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Total Card -->
+                  <div class="bg-white rounded-xl p-5 shadow-md border border-green-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+                    <div class="flex items-center justify-between mb-4">
+                      <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Total</h4>
+                      <div class="p-2 bg-green-50 rounded-lg">
+                        <i class="fas fa-coins text-green-500"></i>
+                      </div>
+                    </div>
+                    <div class="space-y-3">
+                      <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Amount:</span>
+                        <span class="text-base font-bold text-green-600">{{ formatCurrency(totalTripAmount) }}</span>
+                      </div>
+                      <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Salary:</span>
+                        <span class="text-base font-bold text-red-600">{{ formatCurrency(totalDriverSalary) }}</span>
+                      </div>
+                      <div class="flex justify-between items-center pt-3 border-t-2 border-gray-100">
+                        <span class="text-sm font-bold text-gray-900">Income:</span>
+                        <span :class="totalIncomeClass" class="text-lg font-bold">
+                          {{ formatCurrency(totalIncome) }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Profit Analysis Card -->
+                  <div class="bg-white rounded-xl p-5 shadow-md border border-purple-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+                    <div class="flex items-center justify-between mb-4">
+                      <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Profit</h4>
+                      <div class="p-2 bg-purple-50 rounded-lg">
+                        <i class="fas fa-chart-pie text-purple-500"></i>
+                      </div>
+                    </div>
+                    <div class="space-y-3">
+                      <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Margin:</span>
+                        <span :class="profitMarginClass" class="text-base font-bold">
+                          {{ profitMargin.toFixed(1) }}%
+                        </span>
+                      </div>
+                      <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Status:</span>
+                        <span :class="statusBadgeClass" class="px-2 py-1 text-xs font-bold rounded-full">
+                          {{ profitStatus }}
+                        </span>
+                      </div>
+                      <div class="flex justify-between items-center pt-3 border-t-2 border-gray-100">
+                        <span class="text-sm text-gray-600">Avg/Trip:</span>
+                        <span :class="avgIncomeClass" class="text-base font-bold">
+                          {{ formatCurrency(incomePerTrip) }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Share Analysis Card -->
+                  <div class="bg-white rounded-xl p-5 shadow-md border border-orange-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+                    <div class="flex items-center justify-between mb-4">
+                      <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Share</h4>
+                      <div class="p-2 bg-orange-50 rounded-lg">
+                        <i class="fas fa-percentage text-orange-500"></i>
+                      </div>
+                    </div>
+                    <div class="space-y-3">
+                      <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Driver:</span>
+                        <span class="text-base font-bold text-orange-600">{{ driverSharePercentage.toFixed(1) }}%</span>
+                      </div>
+                      <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Owner:</span>
+                        <span class="text-base font-bold text-green-600">{{ ownerSharePercentage.toFixed(1) }}%</span>
+                      </div>
+                      <div class="flex justify-between items-center pt-3 border-t-2 border-gray-100">
+                        <span class="text-sm text-gray-600">Trips:</span>
+                        <span class="text-base font-bold text-blue-600">{{ form.total_trips }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Visual Progress Bars -->
+                <div class="bg-white rounded-xl p-5 shadow-sm">
+                  <h4 class="text-sm font-bold text-gray-700 mb-4">Revenue Distribution</h4>
+                  <div class="space-y-4">
+                    <!-- Driver Share Bar -->
+                    <div>
+                      <div class="flex justify-between text-xs text-gray-600 mb-2">
+                        <span>Driver Share</span>
+                        <span class="font-semibold">{{ formatCurrency(totalDriverSalary) }} ({{ driverSharePercentage.toFixed(1) }}%)</span>
+                      </div>
+                      <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                        <div class="bg-gradient-to-r from-orange-400 to-red-500 h-3 rounded-full transition-all duration-1000 ease-out animate-progress-bar"
+                          :style="{ width: driverSharePercentage + '%' }">
+                        </div>
+                      </div>
+                    </div>
+                    <!-- Owner Share Bar -->
+                    <div>
+                      <div class="flex justify-between text-xs text-gray-600 mb-2">
+                        <span>Your Share</span>
+                        <span class="font-semibold">{{ formatCurrency(totalIncome) }} ({{ ownerSharePercentage.toFixed(1) }}%)</span>
+                      </div>
+                      <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                        <div class="bg-gradient-to-r from-green-400 to-emerald-500 h-3 rounded-full transition-all duration-1000 ease-out animate-progress-bar"
+                          :style="{ width: ownerSharePercentage + '%' }">
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </transition>
+
+          <!-- Action Buttons -->
+          <div class="flex justify-end space-x-4">
+            <Link :href="route('trips.index')" 
+              class="px-8 py-3 border-2 border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all duration-300 shadow-sm hover:shadow-md">
+              <i class="fas fa-times mr-2"></i>
               Cancel
             </Link>
             <button
               type="submit"
               :disabled="form.processing || !canSubmit"
-              class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              class="px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 disabled:transform-none"
             >
               <i v-if="form.processing" class="fas fa-spinner fa-spin mr-2"></i>
-              <i v-else class="fas fa-plus mr-2"></i>
+              <i v-else class="fas fa-check-circle mr-2"></i>
               {{ form.processing ? 'Creating Trips...' : `Create ${form.total_trips || 0} Trip${(form.total_trips || 0) !== 1 ? 's' : ''}` }}
             </button>
           </div>
@@ -465,9 +625,9 @@ const newDriverBalance = computed(() => {
 })
 
 const newBalanceText = computed(() => {
-  if (newDriverBalance.value < 0) return 'Driver will owe'
-  if (newDriverBalance.value > 0) return 'Driver will have credit'
-  return 'Driver balance will be zero'
+  if (newDriverBalance.value < 0) return 'Will owe'
+  if (newDriverBalance.value > 0) return 'Will have credit'
+  return 'Balanced'
 })
 
 const newBalanceClass = computed(() => {
@@ -482,18 +642,34 @@ const newBalanceTextClass = computed(() => {
 
 const balanceAlertClass = computed(() => {
   return driverBalance.value < 0 
-    ? 'bg-red-50 border border-red-200' 
+    ? 'bg-red-50 border-red-400' 
     : driverBalance.value > 0
-    ? 'bg-green-50 border border-green-200'
-    : 'bg-gray-50 border border-gray-200'
+    ? 'bg-green-50 border-green-400'
+    : 'bg-gray-50 border-gray-400'
 })
 
 const balanceIconClass = computed(() => {
   return driverBalance.value < 0 
     ? 'fas fa-exclamation-triangle text-red-500' 
     : driverBalance.value > 0
-    ? 'fas fa-info-circle text-green-500'
-    : 'fas fa-check-circle text-gray-500'
+    ? 'fas fa-check-circle text-green-500'
+    : 'fas fa-info-circle text-gray-500'
+})
+
+const balanceIconBgClass = computed(() => {
+  return driverBalance.value < 0 
+    ? 'bg-red-100' 
+    : driverBalance.value > 0
+    ? 'bg-green-100'
+    : 'bg-gray-100'
+})
+
+const balanceAmountClass = computed(() => {
+  return driverBalance.value < 0 
+    ? 'text-red-600' 
+    : driverBalance.value > 0
+    ? 'text-green-600'
+    : 'text-gray-600'
 })
 
 const balanceTitle = computed(() => {
@@ -536,10 +712,10 @@ const profitMarginClass = computed(() => {
   return 'text-green-600'
 })
 const statusBadgeClass = computed(() => {
-  if (totalIncome.value < 0) return 'bg-red-100 text-red-800'
-  if (profitMargin.value < 10) return 'bg-yellow-100 text-yellow-800'
-  if (profitMargin.value < 25) return 'bg-green-100 text-green-800'
-  return 'bg-blue-100 text-blue-800'
+  if (totalIncome.value < 0) return 'bg-red-500 text-white'
+  if (profitMargin.value < 10) return 'bg-yellow-500 text-white'
+  if (profitMargin.value < 25) return 'bg-green-500 text-white'
+  return 'bg-blue-500 text-white'
 })
 const avgIncomeClass = computed(() => incomePerTrip.value >= 0 ? 'text-green-600' : 'text-red-600')
 
@@ -617,56 +793,206 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Custom styles for better visual appeal */
+/* Keyframe Animations */
+@keyframes float {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  33% { transform: translate(30px, -30px) rotate(3deg); }
+  66% { transform: translate(-20px, 20px) rotate(-3deg); }
+}
+
+@keyframes float-delayed {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  33% { transform: translate(-30px, 30px) rotate(-3deg); }
+  66% { transform: translate(20px, -20px) rotate(3deg); }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(0, -20px) scale(1.05); }
+}
+
+@keyframes fade-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes progress-bar {
+  from { width: 0%; }
+}
+
+/* Animation Classes */
+.animate-float {
+  animation: float 20s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float-delayed 25s ease-in-out infinite;
+}
+
+.animate-float-slow {
+  animation: float-slow 30s ease-in-out infinite;
+}
+
+.animate-fade-in-down {
+  animation: fade-in-down 0.6s ease-out;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.8s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.5s ease-out;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.5s ease-out;
+}
+
+.animate-progress-bar {
+  animation: progress-bar 1s ease-out;
+}
+
+/* Form Field Styling */
+.form-field {
+  animation: fade-in 0.6s ease-out backwards;
+}
+
+.form-label {
+  @apply block text-sm font-semibold text-gray-700 mb-2 flex items-center;
+}
+
+.form-input {
+  @apply w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-300 bg-white;
+}
+
+.form-input:hover {
+  @apply border-gray-300;
+}
+
+.error-message {
+  @apply mt-2 text-sm text-red-600 flex items-center;
+}
+
+/* Vue Transitions */
+.slide-fade-enter-active {
+  transition: all 0.5s ease-out;
+}
+
+.slide-fade-leave-active {
+  transition: all 0.3s ease-in;
+}
+
+.slide-fade-enter-from {
+  transform: translateY(-10px);
+  opacity: 0;
+}
+
+.slide-fade-leave-to {
+  transform: translateY(10px);
+  opacity: 0;
+}
+
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+
+.expand-enter-active {
+  transition: all 0.5s ease-out;
+  overflow: hidden;
+}
+
+.expand-leave-active {
+  transition: all 0.3s ease-in;
+  overflow: hidden;
+}
+
+.expand-enter-from {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+.expand-leave-to {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+.expand-enter-to, .expand-leave-from {
+  max-height: 2000px;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Container */
 .container {
-  max-width: 1200px;
+  max-width: 1400px;
 }
 
-/* Animation for the calculation summary */
-.bg-gradient-to-r {
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%);
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-/* Hover effects for interactive elements */
-select:hover, input:hover {
-  border-color: #93c5fd;
-  transition: border-color 0.2s ease;
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 10px;
 }
 
-/* Focus states */
-select:focus, input:focus {
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  border-color: #3b82f6;
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #3b82f6, #2563eb);
+  border-radius: 10px;
 }
 
-/* Button hover effects */
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #2563eb, #1d4ed8);
+}
+
+/* Button Hover Effects */
 button:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transition: all 0.2s ease;
+  transform: translateY(-2px);
 }
 
-/* Card hover effects */
-.bg-white:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transition: box-shadow 0.2s ease;
+button:active:not(:disabled) {
+  transform: translateY(0);
 }
-
-/* Loading spinner animation */
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.fa-spin {
-  animation: spin 1s linear infinite;
-}
-
-/* Form progress bar */
-.bg-blue-600 {
-  transition: width 0.3s ease;
-}
-
 </style>
-
-
